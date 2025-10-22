@@ -16,7 +16,7 @@ if (not (game:IsLoaded() and getgenv().drawingLoaded)) then repeat task.wait() u
         local inits = {};
 
         for _, file in next, (inculdes) do
-            for i, v in next, (loadstring(game:HttpGet("https://raw.githubusercontent.com/suannelson123/op-modules/refs/heads/main/Operation%20One/main.lua?token=GHSAT0AAAAAADJKC437POCWZJ7UGJVR3KA62HYEROQ" .. file, true))()) do
+            for i, v in next, (loadstring(game:HttpGet("https://github.com/suannelson123/op-modules/tree/main/Operation%20One" .. file, true))()) do
                 if (i == "init") then
                     table.insert(inits, v);
                     continue;
