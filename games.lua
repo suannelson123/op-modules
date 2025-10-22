@@ -2,7 +2,7 @@ return {
     ["72920620366355"] = {
         name = "Operation One",
         pid = 1332,
-        load = loadstring(game:HttpGet("https://raw.githubusercontent.com/Chaddestdog/KLUB/refs/heads/main/Operation%20One/main.lua")),
+        load = loadstring(game:HttpGet("https://github.com/suannelson123/op-modules/blob/main/Operation%20One/main.lua")),
         bypass_ver = "1.0",
     },
 };
