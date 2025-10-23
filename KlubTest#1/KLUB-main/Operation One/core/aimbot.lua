@@ -11,10 +11,16 @@ local settings = {
     silent = false,
     circle = Drawing.new("Circle"),
     screen_middle = (camera.ViewportSize / 2),
-    target = "head",
+    target = "head",               -- legacy: used when mode = "classic"
     smoothing = 200,
-    pressed = "aiming"
+    pressed = "aiming",
+
+    -- NEW:
+    mode = "closest",              -- "classic" = use `target` (head/torso), "closest" = pick closest part to FOV
+    hitbox_priority = {"head","torso","shoulder1","shoulder2","arm1","arm2","hip1","hip2","leg1","leg2"},
+    hitbox_offset = Vector3.new(0,0,0) -- world-space bias; e.g. Vector3.new(0,0.1,0) if you want slightly above
 };
+
 
 local screen_middle = settings.screen_middle;
 
@@ -35,27 +41,69 @@ local get_useable = function()
     or settings.pressed == "any"      and (user_input_service:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) or user_input_service:IsMouseButtonPressed(Enum.UserInputType.MouseButton2)) and true) or false;
 end;
 
-local find_closest = function()
-    local PlayerAmt, Closest, Player, Distance, SPos, Aimpart = players:GetPlayers(), nil, nil, math.huge, Vector2.new(), nil;
-    for _ = 2, #PlayerAmt do 
-        local i: Player = PlayerAmt[_];
-        local v: Model = workspace.Viewmodels.FindFirstChild(workspace.Viewmodels, "Viewmodels/" .. i.Name);
-        if (not v) then continue end;
-        local Torso: Part = v.WaitForChild(v, settings.target);
-        if (not Torso) then continue end;
-        if (not v:FindFirstChild("EnemyHighlight")) then continue end;
-        local Point, On = to_view_point(Torso.Position);
-        if (not On) then continue end;
-        local ScreenDistance = (Point - screen_middle).Magnitude
-        if (ScreenDistance >= Distance or (circle.Visible and ScreenDistance > circle.Radius)) then continue end;
-        Distance = ScreenDistance;
-        Closest = v;
-        Player = i;
-        SPos = Point;
-        Aimpart = Torso
-    end;
-    return Player, Closest, SPos, Aimpart;
-end;
+local function find_closest()
+    local PlayerAmt = players:GetPlayers()
+    local ClosestPlayer, ClosestViewmodel, ClosestScreenPos, ClosestPart
+    local BestDistance = math.huge
+    local screen_mid = settings.screen_middle or screen_middle
+
+    for i = 2, #PlayerAmt do
+        local pl = PlayerAmt[i]
+        local vm = workspace.Viewmodels:FindFirstChild("Viewmodels/" .. pl.Name)
+        if (not vm) then continue end
+        if (not vm:FindFirstChild("EnemyHighlight")) then continue end
+
+        -- If user chose "classic" (head/torso), only check the chosen target part
+        if settings.mode == "classic" then
+            local partName = settings.target or "head"
+            local part = vm:FindFirstChild(partName)
+            if not part then continue end
+            local aimPos = part.Position + settings.hitbox_offset
+            local point, onScreen = to_view_point(aimPos)
+            if not onScreen then continue end
+            local screenDist = (point - screen_mid).Magnitude
+            if (settings.circle and settings.circle.Visible and screenDist > settings.circle.Radius) then
+                continue
+            end
+            if screenDist < BestDistance then
+                BestDistance = screenDist
+                ClosestPlayer = pl
+                ClosestViewmodel = vm
+                ClosestScreenPos = point
+                ClosestPart = part
+            end
+
+        -- "closest" mode: iterate priority list and pick the single closest part across ALL players
+        else -- settings.mode == "closest"
+            for _, partName in ipairs(settings.hitbox_priority) do
+                local part = vm:FindFirstChild(partName)
+                if not part then goto continue_part end
+
+                local aimPos = part.Position + settings.hitbox_offset
+                local point, onScreen = to_view_point(aimPos)
+                if not onScreen then goto continue_part end
+
+                local screenDist = (point - screen_mid).Magnitude
+                if (settings.circle and settings.circle.Visible and screenDist > settings.circle.Radius) then
+                    goto continue_part
+                end
+
+                if screenDist < BestDistance then
+                    BestDistance = screenDist
+                    ClosestPlayer = pl
+                    ClosestViewmodel = vm
+                    ClosestScreenPos = point
+                    ClosestPart = part
+                end
+
+                ::continue_part::
+            end
+        end
+    end
+
+    return ClosestPlayer, ClosestViewmodel, ClosestScreenPos, ClosestPart
+end
+
 
 rawset(aimbot, "aimbot_settings", settings);
 
