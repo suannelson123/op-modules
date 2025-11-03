@@ -127,15 +127,16 @@ if (not (game:IsLoaded() and getgenv().drawingLoaded)) then repeat task.wait() u
                 end});
                 weapon_modifications_groupbox:AddSlider('weapon_modifications_firerate', {
     Text = 'Firerate Multiplier',
-    Default = weapon_modifications_settings.firerate_multiplier,
+    Default = weapon_modifications_settings.firerate_multiplier, -- <- default value
     Min = 1,
     Max = 10,
-    Rounding = 1,
+    Rounding = 1,    -- use 0.1 for finer control
     Compact = false,
     Callback = function(Value)
         weapon_modifications_settings.firerate_multiplier = Value
     end
 })
+
 
 
                 --[[weapon_modifications_groupbox:AddSlider('weapon_modifications_firerate_multiplier', {Text = 'Firerate Multiplier', Default = 1, Min = 1, Max = 10, Rounding = 0, Compact = false, Callback = function(Value)
