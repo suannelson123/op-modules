@@ -88,53 +88,72 @@ end
 
             local aimbot_groupbox = combat:AddLeftGroupbox("Aimbot") do
                 
-                aimbot_groupbox:AddToggle('aimbot_enable', {Text = "Enable", Default = false, Callback = function(value: boolean)
-                    aimbot_settings.enabled = value;
-                end});
-
-                aimbot_groupbox:AddToggle('aimbot_psilent', {Text = "PSilent", Default = false, Callback = function(value: boolean)
-                    aimbot_settings.silent = value;
-                end});
-                
-                aimbot_groupbox:AddDropdown('aimbot_pressed', {Values = {"None", "shooting", "aiming", "any"} , Default = 3, Multi = false, Text = 'Key', Callback = function(Value)
-                    aimbot_settings.pressed = Value;
-                end});
-
-                aimbot_groupbox:AddDropdown('aimbot_target', {Values = {"head", "torso"} , Default = 1, Multi = false, Text = 'Target', Callback = function(Value)
-                    aimbot_settings.target = Value;
-                end});
-                aimbot_groupbox:AddDropdown('aimbot_mode', {
-    Values = {"Classic (head/torso)", "Closest Part"},
-    Default = 1,
-    Multi = false,
-    Text = 'Mode',
-    Callback = function(Value)
-        if Value == "Closest Part" then
-            aimbot_settings.mode = "closest"
-        else
-            aimbot_settings.mode = "classic"
-        end
+                aimbot_groupbox:AddToggle('aimbot_enable', {
+    Text = "Enable",
+    Default = false,
+    Callback = function(value: boolean)
+        aimbot_settings.enabled = value
     end
-});
+})
 
+aimbot_groupbox:AddToggle('aimbot_psilent', {
+    Text = "PSilent",
+    Default = false,
+    Callback = function(value: boolean)
+        aimbot_settings.silent = value
+    end
+})
 
-                aimbot_groupbox:AddSlider('aimbot_smoothing', {Text = 'Smoothing', Default = 1, Min = 1, Max = 1000, Rounding = 0, Compact = false, Callback = function(Value)
-                    aimbot_settings.smoothing = Value;
-                end});
+aimbot_groupbox:AddDropdown('aimbot_pressed', {
+    Values = {"None", "shooting", "aiming", "any"},
+    Default = 3,
+    Multi = false,
+    Text = 'Key',
+    Callback = function(Value)
+        aimbot_settings.pressed = Value
+    end
+})
 
-                local aimbot_fov_enable = aimbot_groupbox:AddToggle('aimbot_fov_enable', {Text = "Fov", Default = false, Callback = function(value: boolean)
-                    aimbot_settings.circle.Visible = value;
-                end});
+aimbot_groupbox:AddSlider('aimbot_smoothing', {
+    Text = 'Smoothing',
+    Default = 1,
+    Min = 1,
+    Max = 1000,
+    Rounding = 0,
+    Compact = false,
+    Callback = function(Value)
+        aimbot_settings.smoothing = Value
+    end
+})
 
-                aimbot_fov_enable:AddColorPicker('aimbot_fov_color', {Default = Color3.fromRGB(255, 255, 255), Title = "Fov Color", Callback = function(value: boolean)
-                    aimbot_settings.circle.Color = value;
-                end});
+local aimbot_fov_enable = aimbot_groupbox:AddToggle('aimbot_fov_enable', {
+    Text = "FOV Circle",
+    Default = false,
+    Callback = function(value: boolean)
+        aimbot_settings.circle.Visible = value
+    end
+})
 
-                aimbot_groupbox:AddSlider('aimbot_fov_size', {Text = 'Fov Size', Default = 1, Min = 1, Max = 1000, Rounding = 0, Compact = false, Callback = function(Value)
-                    aimbot_settings.circle.Radius = Value;
-                end});
+aimbot_fov_enable:AddColorPicker('aimbot_fov_color', {
+    Default = Color3.fromRGB(255, 255, 255),
+    Title = "FOV Color",
+    Callback = function(value)
+        aimbot_settings.circle.Color = value
+    end
+})
 
-            end;
+aimbot_groupbox:AddSlider('aimbot_fov_size', {
+    Text = 'FOV Size',
+    Default = 120,
+    Min = 10,
+    Max = 1000,
+    Rounding = 0,
+    Compact = false,
+    Callback = function(Value)
+        aimbot_settings.circle.Radius = Value
+    end
+})
+
 
             local weapon_modifications_groupbox = combat:AddRightGroupbox("Weapon Modifications") do
 
