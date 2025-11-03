@@ -1,6 +1,5 @@
 loadstring(game:HttpGet("https://raw.githubusercontent.com/mainstreamed/amongus-hook/refs/heads/main/drawingfix.lua", true))();
 
--- wait for game and drawing to be ready (if not already)
 if not (game:IsLoaded() and getgenv().drawingLoaded) then
     repeat
         task.wait()
@@ -12,10 +11,11 @@ do
         return
     end
 
-    -- rest of your code (includes block, etc.) goes here...
 
 
-    do -- includes
+
+   do 
+    local base_url = "https://raw.githubusercontent.com/suannelson123/op-modules/main/Operation%20One/" 
 
     local includes = {
         "sdk/memory.lua",
@@ -29,15 +29,22 @@ do
     local inits = {}
 
     for _, file in next, includes do
+        local url = base_url .. file
+        print("[Includes] Fetching:", url)
 
-        local url = "https://raw.githubusercontent.com/suannelson123/op-modules/26e28d8d06e60538318639393e084c5d9ea1600b/test%232/Operation%20One/" .. file
-        
         local ok, response = pcall(function()
             return game:HttpGet(url, true)
         end)
 
-        if not ok then
-            warn("[Includes] Failed to fetch:", file, "-", response)
+        if not ok or not response or response == "" then
+            warn("[Includes] Failed to fetch:", file, "-", response or "nil / empty response")
+            continue
+        end
+
+        local first8 = tostring(response):sub(1, 8)
+        if first8:match("^%s*<") or response:find("404") or response:find("Not Found") then
+            warn("[Includes] Bad response (probably HTML). Check URL or repo visibility:", url)
+            warn("[Includes] response snippet:", tostring(response):sub(1, 200))
             continue
         end
 
@@ -49,12 +56,17 @@ do
 
         local success, result = pcall(chunk)
         if not success then
-            warn("[Includes] Runtime error in:", file, "-", result)
+            warn("[Includes] Runtime error when executing:", file, "-", result)
+            continue
+        end
+
+        if type(result) ~= "table" then
+            warn("[Includes] Module did not return a table:", file)
             continue
         end
 
         for i, v in next, result do
-            if i == "init" then
+            if i == "init" and type(v) == "function" then
                 table.insert(inits, v)
             else
                 rawset(getfenv(1), i, v)
@@ -62,14 +74,14 @@ do
         end
     end
 
-
     for _, init in next, inits do
-        local ok, err = pcall(init)
-        if not ok then
-            warn("[Includes] init() error:", err)
+        local ok2, err2 = pcall(init)
+        if not ok2 then
+            warn("[Includes] init() error:", err2)
         end
     end
- end
+end
+
 end
 
 
@@ -186,6 +198,18 @@ aimbot_groupbox:AddSlider('aimbot_fov_size', {
                 weapon_modifications_groupbox:AddSlider('weapon_modifications_recoil_y', {Text = 'Recoil Y', Default = 100, Min = 0, Max = 100, Rounding = 0, Compact = false, Callback = function(Value)
                     weapon_modifications_settings.recoil_y = (Value / 100);
                 end});
+                weapon_modifications_groupbox:AddSlider('weapon_modifications_firerate_multiplier', {
+    Text = 'Fire Rate Multiplier',
+    Default = weapon_modifications_settings.firerate_multiplier or 1,
+    Min = 1,
+    Max = 10,
+    Rounding = 1,
+    Compact = false,
+    Callback = function(Value)
+        weapon_modifications_settings.firerate_multiplier = Value
+    end
+})
+
                
 
 
