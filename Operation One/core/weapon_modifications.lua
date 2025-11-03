@@ -26,8 +26,8 @@ weapon_modifications.init = function()
         elseif (debug.info(4, 'n') == "reload_begin" and typeof(debug.getstack(4, 6)) == "number" and settings.fast_reload) then
             debug.setstack(4, 6, (debug.getstack(4, 6) / 1.1))
         elseif (debug.info(3, 'n') == "fire_bullet" or debug.info(3, 'n') == "send_shoot") and settings.firerate_multiplier > 1 then
-    -- Only affect actual fire delay, not animations
-    for i = 5, 15 do
+
+                    for i = 5, 15 do
         local val = debug.getstack(3, i)
         if typeof(val) == "number" and val > 0.05 and val < 0.5 then
             debug.setstack(3, i, val / settings.firerate_multiplier)
