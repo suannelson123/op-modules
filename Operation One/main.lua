@@ -198,15 +198,25 @@ aimbot_groupbox:AddSlider('aimbot_fov_size', {
                 weapon_modifications_groupbox:AddSlider('weapon_modifications_recoil_y', {Text = 'Recoil Y', Default = 100, Min = 0, Max = 100, Rounding = 0, Compact = false, Callback = function(Value)
                     weapon_modifications_settings.recoil_y = (Value / 100);
                 end});
-                weapon_modifications_groupbox:AddSlider('weapon_modifications_firerate_multiplier', {
+
+    
+weapon_modifications_groupbox:AddToggle('fast_firerate_toggle', {
+    Text = 'Fast Firerate',
+    Default = weapon_modifications_settings.fast_firerate or false,
+    Callback = function(state)
+        weapon_modifications_settings.fast_firerate = state
+    end
+})
+
+weapon_modifications_groupbox:AddSlider('firerate_multiplier_slider', {
     Text = 'Fire Rate Multiplier',
     Default = weapon_modifications_settings.firerate_multiplier or 1,
     Min = 1,
     Max = 10,
-    Rounding = 1,
+    Rounding = 1, 
     Compact = false,
-    Callback = function(Value)
-        weapon_modifications_settings.firerate_multiplier = Value
+    Callback = function(value)
+        weapon_modifications_settings.firerate_multiplier = value
     end
 })
 
