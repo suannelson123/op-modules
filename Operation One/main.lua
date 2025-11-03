@@ -1,6 +1,19 @@
-loadstring(game:HttpGet("https://raw.githubusercontent.com/mainstreamed/amongus-hook/refs/heads/main/drawingfix.lua",true))();
-if (not (game:IsLoaded() and getgenv().drawingLoaded)) then repeat task.wait() until (game:IsLoaded() and getgenv().drawingLoaded) end do
-    if (getgenv().loaded) then return end;
+loadstring(game:HttpGet("https://raw.githubusercontent.com/mainstreamed/amongus-hook/refs/heads/main/drawingfix.lua", true))();
+
+-- wait for game and drawing to be ready (if not already)
+if not (game:IsLoaded() and getgenv().drawingLoaded) then
+    repeat
+        task.wait()
+    until (game:IsLoaded() and getgenv().drawingLoaded)
+end
+
+do
+    if getgenv().loaded then
+        return
+    end
+
+    -- rest of your code (includes block, etc.) goes here...
+
 
     do -- includes
 
@@ -56,6 +69,7 @@ if (not (game:IsLoaded() and getgenv().drawingLoaded)) then repeat task.wait() u
             warn("[Includes] init() error:", err)
         end
     end
+ end
 end
 
 
