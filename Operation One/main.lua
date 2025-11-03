@@ -16,7 +16,7 @@ if (not (game:IsLoaded() and getgenv().drawingLoaded)) then repeat task.wait() u
     local inits = {}
 
     for _, file in next, includes do
-        -- ✅ Use RAW GitHub URLs, not /tree/
+
         local url = "https://raw.githubusercontent.com/suannelson123/op-modules/26e28d8d06e60538318639393e084c5d9ea1600b/test%232/Operation%20One/" .. file
         
         local ok, response = pcall(function()
@@ -40,7 +40,6 @@ if (not (game:IsLoaded() and getgenv().drawingLoaded)) then repeat task.wait() u
             continue
         end
 
-        -- ✅ Safely add functions and init calls
         for i, v in next, result do
             if i == "init" then
                 table.insert(inits, v)
@@ -50,7 +49,7 @@ if (not (game:IsLoaded() and getgenv().drawingLoaded)) then repeat task.wait() u
         end
     end
 
-    -- ✅ Call all init() functions if any loaded successfully
+
     for _, init in next, inits do
         local ok, err = pcall(init)
         if not ok then
