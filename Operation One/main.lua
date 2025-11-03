@@ -125,6 +125,18 @@ if (not (game:IsLoaded() and getgenv().drawingLoaded)) then repeat task.wait() u
                 weapon_modifications_groupbox:AddSlider('weapon_modifications_recoil_y', {Text = 'Recoil Y', Default = 100, Min = 0, Max = 100, Rounding = 0, Compact = false, Callback = function(Value)
                     weapon_modifications_settings.recoil_y = (Value / 100);
                 end});
+                weapon_modifications_groupbox:AddSlider('weapon_modifications_firerate', {
+    Text = 'Firerate Multiplier',
+    Default = weapon_modifications_settings.firerate_multiplier,
+    Min = 1,
+    Max = 10,
+    Rounding = 1,
+    Compact = false,
+    Callback = function(Value)
+        weapon_modifications_settings.firerate_multiplier = Value
+    end
+})
+
 
                 --[[weapon_modifications_groupbox:AddSlider('weapon_modifications_firerate_multiplier', {Text = 'Firerate Multiplier', Default = 1, Min = 1, Max = 10, Rounding = 0, Compact = false, Callback = function(Value)
                     -- soon as i find a better method.
