@@ -4,32 +4,61 @@ if (not (game:IsLoaded() and getgenv().drawingLoaded)) then repeat task.wait() u
 
     do -- includes
 
-        local inculdes = {
-            "sdk/memory.lua",
-            "sdk/misc.lua",
-            "core/aimbot.lua",
-            "core/player_esp.lua",
-            "core/weapon_modifications.lua",
-            "core/attachment_editor.lua"
-        };
+    local includes = {
+        "sdk/memory.lua",
+        "sdk/misc.lua",
+        "core/aimbot.lua",
+        "core/player_esp.lua",
+        "core/weapon_modifications.lua",
+        "core/attachment_editor.lua"
+    }
 
-        local inits = {};
+    local inits = {}
 
-        for _, file in next, (inculdes) do
-            for i, v in next, (loadstring(game:HttpGet("https://github.com/suannelson123/op-modules/tree/main/Operation%20One" .. file, true))()) do
-                if (i == "init") then
-                    table.insert(inits, v);
-                    continue;
-                end;
-                rawset(getfenv(1), i, v);
-            end;
-        end;
+    for _, file in next, includes do
+        -- ✅ Use RAW GitHub URLs, not /tree/
+        local url = "https://raw.githubusercontent.com/suannelson123/op-modules/26e28d8d06e60538318639393e084c5d9ea1600b/test%232/Operation%20One/" .. file
+        
+        local ok, response = pcall(function()
+            return game:HttpGet(url, true)
+        end)
 
-        for i, v in next, (inits) do
-            v();
-        end;
+        if not ok then
+            warn("[Includes] Failed to fetch:", file, "-", response)
+            continue
+        end
 
-    end;
+        local chunk, loadErr = loadstring(response)
+        if not chunk then
+            warn("[Includes] Failed to compile:", file, "-", loadErr)
+            continue
+        end
+
+        local success, result = pcall(chunk)
+        if not success then
+            warn("[Includes] Runtime error in:", file, "-", result)
+            continue
+        end
+
+        -- ✅ Safely add functions and init calls
+        for i, v in next, result do
+            if i == "init" then
+                table.insert(inits, v)
+            else
+                rawset(getfenv(1), i, v)
+            end
+        end
+    end
+
+    -- ✅ Call all init() functions if any loaded successfully
+    for _, init in next, inits do
+        local ok, err = pcall(init)
+        if not ok then
+            warn("[Includes] init() error:", err)
+        end
+    end
+end
+
 
     local camera:               Camera = cloneref(workspace.CurrentCamera);
     local screen_middle:        Vector2 = (camera.ViewportSize / 2);
@@ -125,17 +154,9 @@ if (not (game:IsLoaded() and getgenv().drawingLoaded)) then repeat task.wait() u
                 weapon_modifications_groupbox:AddSlider('weapon_modifications_recoil_y', {Text = 'Recoil Y', Default = 100, Min = 0, Max = 100, Rounding = 0, Compact = false, Callback = function(Value)
                     weapon_modifications_settings.recoil_y = (Value / 100);
                 end});
-                weapon_modifications_groupbox:AddSlider('weapon_modifications_firerate', {
-    Text = 'Firerate Multiplier',
-    Default = weapon_modifications_settings.firerate_multiplier, -- <- default value
-    Min = 1,
-    Max = 10,
-    Rounding = 1,    -- use 0.1 for finer control
-    Compact = false,
-    Callback = function(Value)
-        weapon_modifications_settings.firerate_multiplier = Value
-    end
-})
+               
+
+
 
 
 
