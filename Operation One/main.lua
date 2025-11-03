@@ -108,7 +108,7 @@ end
         local library = loadstring(game:HttpGet("https://raw.githubusercontent.com/violin-suzutsuki/LinoriaLib/main/Library.lua"))()
         local theme_manager = loadstring(game:HttpGet("https://raw.githubusercontent.com/violin-suzutsuki/LinoriaLib/main/addons/ThemeManager.lua"))()
         local save_manager = loadstring(game:HttpGet("https://raw.githubusercontent.com/violin-suzutsuki/LinoriaLib/main/addons/SaveManager.lua"))()
-        local window = library:CreateWindow({Title = "BOrat na tite | Pid: " .. game.PlaceVersion, Center = true, AutoShow = true, TabPadding = 8, MenuFadeTime = 0.2});
+        local window = library:CreateWindow({Title = "BOrat na tite2 | Pid: " .. game.PlaceVersion, Center = true, AutoShow = true, TabPadding = 8, MenuFadeTime = 0.2});
         
         local combat = window:AddTab("Combat") do
 
@@ -200,25 +200,7 @@ aimbot_groupbox:AddSlider('aimbot_fov_size', {
                 end});
 
     
-weapon_modifications_groupbox:AddToggle('fast_firerate_toggle', {
-    Text = 'Fast Firerate',
-    Default = weapon_modifications_settings.fast_firerate or false,
-    Callback = function(state)
-        weapon_modifications_settings.fast_firerate = state
-    end
-})
 
-weapon_modifications_groupbox:AddSlider('firerate_multiplier_slider', {
-    Text = 'Fire Rate Multiplier',
-    Default = weapon_modifications_settings.firerate_multiplier or 1,
-    Min = 1,
-    Max = 10,
-    Rounding = 1, 
-    Compact = false,
-    Callback = function(value)
-        weapon_modifications_settings.firerate_multiplier = value
-    end
-})
 
                
 
