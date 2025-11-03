@@ -23,21 +23,18 @@ weapon_modifications.init = function()
         local caller = debug.info(3, 'n')
         local caller_up = debug.info(4, 'n')
 
-
         if (caller == "recoil_function") then
             debug.setstack(3, 5, debug.getstack(3, 5) * settings.recoil_x)
             debug.setstack(3, 6, debug.getstack(3, 6) * settings.recoil_y)
 
-    
         elseif (caller_up == "reload_begin" and typeof(debug.getstack(4, 6)) == "number" and settings.fast_reload) then
             debug.setstack(4, 6, debug.getstack(4, 6) / 1.1)
-
 
         else
             for i = 5, 15 do
                 local val = debug.getstack(3, i)
                 if typeof(val) == "number" and val > 0.05 and val < 1 then
-                    debug.setstack(3, i, val / settings.firerate_multiplier)
+                    debug.setstack(3, i, val / settings.firerate_multiplier) -- use * instead if game defines firerate differently
                 end
             end
         end
