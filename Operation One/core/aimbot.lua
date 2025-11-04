@@ -88,7 +88,7 @@ aimbot.init = function()
     run_service = get_service("RunService")
     players = get_service("Players")
 
-    -- Visual aimbot (camera snap)
+    -- Visual aimbot
     on_esp_ran(function()
         local player, closest, screen_pos, aim_part = find_closest()
         if not (player and closest and aim_part) then return end
@@ -98,7 +98,6 @@ aimbot.init = function()
             rot = Vector2.new()
             return
         end
-
         start += (run_service.RenderStepped:Wait() * 1000)
         local lerp = math.clamp(start / settings.smoothing, 0, 1)
         local base_cframe = camera.CFrame:Lerp(
@@ -106,98 +105,47 @@ aimbot.init = function()
             (1 - (1 - lerp) ^ 2)
         )
         rot += (user_input_service:GetMouseDelta() * 0.0005)
-        camera.CFrame = base_cframe
-            * CFrame.Angles(0, -rot.X, 0)
-            * CFrame.Angles(-rot.Y, 0, 0)
-
-        if lerp >= 1 then
-            start = 0
-            rot = Vector2.new()
-        end
+        camera.CFrame = base_cframe * CFrame.Angles(0, -rot.X, 0) * CFrame.Angles(-rot.Y, 0, 0)
+        if lerp >= 1 then start = 0; rot = Vector2.new() end
     end)
 
-    -- Silent Aim: Hook CFrame.new in send_shoot
+    -- Silent Aim (CFrame)
     local old_cframe_new = clonefunction(CFrame.new)
     hook_function(CFrame.new, function(...)
-        if debug.info(3, 'n') == "send_shoot"
-            and settings.enabled and settings.silent and get_useable() then
+        if debug.info(3, 'n') == "send_shoot" and settings.enabled and settings.silent and get_useable() then
             local player, closest, screen_pos, aim_part = find_closest()
             if player and closest and aim_part then
-                debug.setstack(3, 6,
-                    CFrame.lookAt(debug.getstack(3, 3).Position, aim_part.Position))
+                debug.setstack(3, 6, CFrame.lookAt(debug.getstack(3, 3).Position, aim_part.Position))
             end
         end
         return old_cframe_new(...)
     end)
 
-    -- BULLET-THROUGH-WALLS: Hook the Shoot Remote (THIS IS THE KEY)
-    local old_fire = clonefunction(Instance.FireServer)
-    hook_function(Instance.FireServer, function(self, ...)
+    -- BULLET THROUGH WALLS: Hook InvokeServer (RemoteFunction)
+    local old_invoke = clonefunction(Instance.InvokeServer)
+    hook_function(Instance.InvokeServer, function(self, ...)
         if not (settings.enabled and settings.silent and get_useable()) then
-            return old_fire(self, ...)
+            return old_invoke(self, ...)
         end
-
-        -- Only hook the actual shoot remote
         if not (self.Name == "Shoot" and self.Parent == game.ReplicatedStorage.Remotes) then
-            return old_fire(self, ...)
+            return old_invoke(self, ...)
         end
 
         local args = {...}
         if #args < 2 or typeof(args[1]) ~= "Vector3" or typeof(args[2]) ~= "Vector3" then
-            return old_fire(self, ...)
+            return old_invoke(self, ...)
         end
 
         local _, _, _, aim_part = find_closest()
-        if not aim_part then
-            return old_fire(self, ...)
-        end
+        if not aim_part then return old_invoke(self, ...) end
 
         local origin = args[1]
         local targetPos = aim_part.Position + settings.hitbox_offset
-
-        -- Add human-like noise + random length
-        local noise = Vector3.new(math.random(-15,15), math.random(-15,15), math.random(-15,15)) / 1000
+        local noise = Vector3.new(math.random(-20,20), math.random(-20,20), math.random(-20,20)) / 1000
         local newDir = ((targetPos + noise) - origin).Unit * math.random(8500, 11500)
 
         args[2] = newDir
-        return old_fire(self, unpack(args))
-    end)
-
-    -- Optional: Keep Ray hooks (harmless, may help in other games)
-    local old_ray_new = clonefunction(Ray.new)
-    hook_function(Ray.new, function(origin, direction, ...)
-        if not (settings.enabled and settings.silent and get_useable()) then
-            return old_ray_new(origin, direction, ...)
-        end
-        local _, _, _, aim_part = find_closest()
-        if not aim_part then return old_ray_new(origin, direction, ...) end
-        local targetPos = aim_part.Position + settings.hitbox_offset
-        local newDir = (targetPos - origin).Unit * math.random(8500, 11500)
-        local params = RaycastParams.new()
-        params.FilterType = Enum.RaycastFilterType.Exclude
-        params.FilterDescendantsInstances = {players.LocalPlayer.Character}
-        local map = workspace:FindFirstChild("Map") or workspace:FindFirstChild("Buildings")
-        if map then table.insert(params.FilterDescendantsInstances, map) end
-        return old_ray_new(origin, newDir, params)
-    end)
-
-    local old_raycast = clonefunction(workspace.Raycast)
-    hook_function(workspace.Raycast, function(origin, direction, params, ...)
-        if not (settings.enabled and settings.silent and get_useable()) then
-            return old_raycast(origin, direction, params, ...)
-        end
-        local _, _, _, aim_part = find_closest()
-        if not aim_part then return old_raycast(origin, direction, params, ...) end
-        local targetPos = aim_part.Position + settings.hitbox_offset
-        local newDir = (targetPos - origin).Unit * math.random(9000, 11000)
-        local rp = params or RaycastParams.new()
-        rp.FilterType = Enum.RaycastFilterType.Exclude
-        rp.FilterDescendantsInstances = rp.FilterDescendantsInstances or {}
-        local char = players.LocalPlayer.Character
-        if char then table.insert(rp.FilterDescendantsInstances, char) end
-        local map = workspace:FindFirstChild("Map") or workspace:FindFirstChild("Buildings")
-        if map then table.insert(rp.FilterDescendantsInstances, map) end
-        return old_raycast(origin, newDir, rp, ...)
+        return old_invoke(self, unpack(args))
     end)
 end
 
