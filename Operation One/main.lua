@@ -229,79 +229,140 @@ aimbot_groupbox:AddSlider('aimbot_fov_size', {
         end;
 
         local esp = window:AddTab("ESP") do
+
+    --=====================================================================
+    -- PLAYER ESP (Left)
+    --=====================================================================
     local player_esp_groupbox = esp:AddLeftGroupbox("Player") do
-        local player_esp_skelton = player_esp_groupbox:AddToggle('player_esp_skelton', {
-            Text = "Skelton", Default = false,
+
+        local skeleton_toggle = player_esp_groupbox:AddToggle('player_esp_skeleton', {
+            Text = "Skeleton",
+            Default = false,
             Callback = function(value)
-                esp_player_settings.skelton = value
+                player_esp.esp_player_settings.skeleton = value
             end
         })
-        player_esp_skelton:AddColorPicker('player_esp_skelton_color', {
-            Default = Color3.fromRGB(255, 255, 255), Title = "Skelton Color",
-            Callback = function(value)
-                esp_player_settings.skelton_color = value
+
+        skeleton_toggle:AddColorPicker('player_esp_skeleton_color', {
+            Default = Color3.fromRGB(255, 255, 255),
+            Title = "Skeleton Color",
+            Callback = function(color)
+                player_esp.esp_player_settings.skeleton_color = color
             end
         })
-       
+
         player_esp_groupbox:AddToggle('player_esp_health_bar', {
-            Text = "Health Bar", Default = false,
+            Text = "Health Bar",
+            Default = false,
             Callback = function(value)
-                esp_player_settings.health_bar = value
+                player_esp.esp_player_settings.health_bar = value
             end
         })
     end
 
+    --=====================================================================
+    -- GADGET ESP (Right) – Claymore + Drone
+    --=====================================================================
     local gadget_esp_groupbox = esp:AddRightGroupbox("Gadgets") do
-        gadget_esp_groupbox:AddToggle('gadget_esp_main', {
-            Text = "Gadget ESP", Default = true,
-            Callback = function(value)
-                esp_player_settings.gadget_esp = value
-            end
-        })
-        
-        local drone_toggle = gadget_esp_groupbox:AddToggle('drone_esp', {
-            Text = "Drones", Default = true,
-            Callback = function(value)
-                esp_player_settings.drone_esp = value
-            end
-        })
-        
-        local claymore_toggle = gadget_esp_groupbox:AddToggle('claymore_esp', {
-            Text = "Claymores", Default = true,
-            Callback = function(value)
-                esp_player_settings.claymore_esp = value
-            end
-        })
-        
+
+        -- Master Toggle (controls both)
         local master_gadget = gadget_esp_groupbox:AddToggle('master_gadget_esp', {
-            Text = "Master Toggle", Default = true,
+            Text = "Master Toggle",
+            Default = true,
             Callback = function(value)
-                esp_player_settings.gadget_esp = value
-                esp_player_settings.drone_esp = value
-                esp_player_settings.claymore_esp = value
-                drone_toggle:SetValue(value)
+                player_esp.esp_player_settings.claymore_box = value
+                player_esp.esp_player_settings.drone_box = value
                 claymore_toggle:SetValue(value)
+                drone_toggle:SetValue(value)
             end
         })
-        
+
+        -- Drone Toggle
+        local drone_toggle = gadget_esp_groupbox:AddToggle('drone_esp', {
+            Text = "Drones",
+            Default = true,
+            Callback = function(value)
+                player_esp.esp_player_settings.drone_box = value
+            end
+        })
+
+        -- Claymore Toggle
+        local claymore_toggle = gadget_esp_groupbox:AddToggle('claymore_esp', {
+            Text = "Claymores",
+            Default = true,
+            Callback = function(value)
+                player_esp.esp_player_settings.claymore_box = value
+            end
+        })
+
+        -- Shared Color Picker
         master_gadget:AddColorPicker('gadget_esp_color', {
-            Default = Color3.fromRGB(255, 165, 0), Title = "Gadget Color",
-            Callback = function(value)
-                esp_player_settings.gadget_color = value
+            Default = Color3.fromRGB(255, 165, 0),
+            Title = "Gadget Color",
+            Callback = function(color)
+                player_esp.esp_player_settings.claymore_color = color
+                player_esp.esp_player_settings.drone_color = color
             end
         })
-        
+
+        -- Transparency Slider
         gadget_esp_groupbox:AddSlider('gadget_esp_transparency', {
-            Text = "Transparency", Default = 0.5, Min = 0, Max = 1, Rounding = 2,
+            Text = "Transparency",
+            Default = 1,
+            Min = 0,
+            Max = 1,
+            Rounding = 2,
             Callback = function(value)
-                esp_player_settings.gadget_transparency = value
+                -- Note: Your current ESP uses `Transparency = 1` (fully opaque)
+                -- We'll map 0 → 0.2, 1 → 1.0 for visual control
+                local alpha = 0.2 + (value * 0.8)
+                -- Apply to all active drawings (you can expand this)
+                for _, drawing in pairs(claymore_drawings) do
+                    if drawing.Visible then
+                        drawing.Transparency = alpha
+                    end
+                end
+                for _, drawing in pairs(drone_drawings) do
+                    if drawing.Visible then
+                        drawing.Transparency = alpha
+                    end
+                end
             end
         })
-        
+
+        -- Box Size Multiplier
         gadget_esp_groupbox:AddSlider('gadget_esp_size', {
-            Text = "Box Size", Default = 16, Min = 10, Max = 30, Rounding = 0,
-            Callback = function(value)
-                esp_player_settings.gadget_box_size = value
+            Text = "Box Size",
+            Default = 1,
+            Min = 0.5,
+            Max = 2,
+            Rounding = 2,
+            Callback = function(scale)
+                -- Store scale for future boxes
+                player_esp.esp_player_settings.box_scale = scale
+                -- Resize existing boxes
+                for _, drawing in pairs(claymore_drawings) do
+                    if drawing.Visible then
+                        local root = drawing.Adornee or drawing._root
+                        if root then
+                            local base = root.Size
+                            local w = base.X * scale
+                            local h = base.Y * scale
+                            drawing.Size = Vector2.new(w, h)
+                        end
+                    end
+                end
+                for _, drawing in pairs(drone_drawings) do
+                    if drawing.Visible then
+                        local root = drawing.Adornee or drawing._root
+                        if root then
+                            local base = root.Size
+                            local w = base.X * scale
+                            local h = base.Y * scale
+                            drawing.Size = Vector2.new(w, h)
+                        end
+                    end
+                end
             end
         })
     end
