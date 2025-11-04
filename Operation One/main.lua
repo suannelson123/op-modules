@@ -1,80 +1,35 @@
-loadstring(game:HttpGet("https://raw.githubusercontent.com/mainstreamed/amongus-hook/refs/heads/main/drawingfix.lua", true))();
+loadstring(game:HttpGet("https://raw.githubusercontent.com/mainstreamed/amongus-hook/refs/heads/main/drawingfix.lua",true))();
+if (not (game:IsLoaded() and getgenv().drawingLoaded)) then repeat task.wait() until (game:IsLoaded() and getgenv().drawingLoaded) end do
+    if (getgenv().loaded) then return end;
 
-if not (game:IsLoaded() and getgenv().drawingLoaded) then
-    repeat
-        task.wait()
-    until (game:IsLoaded() and getgenv().drawingLoaded)
-end
+    do -- includes
 
-do
-    if getgenv().loaded then
-        return
-    end
+        local inculdes = {
+            "sdk/memory.lua",
+            "sdk/misc.lua",
+            "core/aimbot.lua",
+            "core/player_esp.lua",
+            "core/weapon_modifications.lua",
+            "core/attachment_editor.lua"
+        };
 
-do
-    if getgenv().loaded then return end
+        local inits = {};
 
-    local base_url = "https://raw.githubusercontent.com/suannelson123/op-modules/main/Operation%20One/"
-    local includes = {
-        "sdk/memory.lua",
-        "sdk/misc.lua",
-        "core/aimbot.lua",
-        "core/player_esp.lua",
-        "core/weapon_modifications.lua",
-        "core/attachment_editor.lua"
-    }
+        for _, file in next, (inculdes) do
+            for i, v in next, (loadstring(game:HttpGet("https://github.com/suannelson123/op-modules/main/Operation%20One" .. file, true))()) do
+                if (i == "init") then
+                    table.insert(inits, v);
+                    continue;
+                end;
+                rawset(getfenv(1), i, v);
+            end;
+        end;
 
-    local inits = {}
+        for i, v in next, (inits) do
+            v();
+        end;
 
-    for _, file in next, includes do
-        local url = base_url .. file
-        print("[Includes] Fetching:", url)
-
-        local ok, resp = pcall(function()
-            return game:HttpGet(url, true)
-        end)
-
-        if not ok or not resp or resp == "" then
-            warn("[Includes] Failed:", file, resp or "nil")
-            continue
-        end
-
-        local chunk, err = loadstring(resp, file)
-        if not chunk then
-            warn("[Includes] Compile error:", file, err)
-            continue
-        end
-
-        local success, result = pcall(chunk)
-        if not success then
-            warn("[Includes] Runtime error:", file, result)
-            continue
-        end
-
-        -- **FORCE a table**
-        if type(result) ~= "table" then
-            warn("[Includes] Not a table → creating stub:", file)
-            result = {}
-        end
-
-        for k, v in next, result do
-            if k == "init" and type(v) == "function" then
-                table.insert(inits, v)
-            else
-                rawset(getfenv(1), k, v)
-            end
-        end
-    end
-
-    for _, fn in next, inits do
-        local ok, err = pcall(fn)
-        if not ok then warn("[Includes] init error:", err) end
-    end
-end
-
-    
-
-
+    end;
 
     local camera:               Camera = cloneref(workspace.CurrentCamera);
     local screen_middle:        Vector2 = (camera.ViewportSize / 2);
@@ -99,78 +54,45 @@ end
         local library = loadstring(game:HttpGet("https://raw.githubusercontent.com/violin-suzutsuki/LinoriaLib/main/Library.lua"))()
         local theme_manager = loadstring(game:HttpGet("https://raw.githubusercontent.com/violin-suzutsuki/LinoriaLib/main/addons/ThemeManager.lua"))()
         local save_manager = loadstring(game:HttpGet("https://raw.githubusercontent.com/violin-suzutsuki/LinoriaLib/main/addons/SaveManager.lua"))()
-        local window = library:CreateWindow({Title = "BOrat na tite2 | Pid: " .. game.PlaceVersion, Center = true, AutoShow = true, TabPadding = 8, MenuFadeTime = 0.2});
+        local window = library:CreateWindow({Title = "KLUB | Pid: " .. game.PlaceVersion, Center = true, AutoShow = true, TabPadding = 8, MenuFadeTime = 0.2});
         
         local combat = window:AddTab("Combat") do
 
             local aimbot_groupbox = combat:AddLeftGroupbox("Aimbot") do
                 
-                aimbot_groupbox:AddToggle('aimbot_enable', {
-    Text = "Enable",
-    Default = false,
-    Callback = function(value: boolean)
-        aimbot_settings.enabled = value
-    end
-})
+                aimbot_groupbox:AddToggle('aimbot_enable', {Text = "Enable", Default = false, Callback = function(value: boolean)
+                    aimbot_settings.enabled = value;
+                end});
 
-aimbot_groupbox:AddToggle('aimbot_psilent', {
-    Text = "PSilent",
-    Default = false,
-    Callback = function(value: boolean)
-        aimbot_settings.silent = value
-    end
-})
+                aimbot_groupbox:AddToggle('aimbot_psilent', {Text = "PSilent", Default = false, Callback = function(value: boolean)
+                    aimbot_settings.silent = value;
+                end});
+                
+                aimbot_groupbox:AddDropdown('aimbot_pressed', {Values = {"None", "shooting", "aiming", "any"} , Default = 3, Multi = false, Text = 'Key', Callback = function(Value)
+                    aimbot_settings.pressed = Value;
+                end});
 
-aimbot_groupbox:AddDropdown('aimbot_pressed', {
-    Values = {"None", "shooting", "aiming", "any"},
-    Default = 3,
-    Multi = false,
-    Text = 'Key',
-    Callback = function(Value)
-        aimbot_settings.pressed = Value
-    end
-})
+                aimbot_groupbox:AddDropdown('aimbot_target', {Values = {"head", "torso"} , Default = 1, Multi = false, Text = 'Target', Callback = function(Value)
+                    aimbot_settings.target = Value;
+                end});
 
-aimbot_groupbox:AddSlider('aimbot_smoothing', {
-    Text = 'Smoothing',
-    Default = 1,
-    Min = 1,
-    Max = 1000,
-    Rounding = 0,
-    Compact = false,
-    Callback = function(Value)
-        aimbot_settings.smoothing = Value
-    end
-})
+                aimbot_groupbox:AddSlider('aimbot_smoothing', {Text = 'Smoothing', Default = 1, Min = 1, Max = 1000, Rounding = 0, Compact = false, Callback = function(Value)
+                    aimbot_settings.smoothing = Value;
+                end});
 
-local aimbot_fov_enable = aimbot_groupbox:AddToggle('aimbot_fov_enable', {
-    Text = "FOV Circle",
-    Default = false,
-    Callback = function(value: boolean)
-        aimbot_settings.circle.Visible = value
-    end
-})
+                local aimbot_fov_enable = aimbot_groupbox:AddToggle('aimbot_fov_enable', {Text = "Fov", Default = false, Callback = function(value: boolean)
+                    aimbot_settings.circle.Visible = value;
+                end});
 
-aimbot_fov_enable:AddColorPicker('aimbot_fov_color', {
-    Default = Color3.fromRGB(255, 255, 255),
-    Title = "FOV Color",
-    Callback = function(value)
-        aimbot_settings.circle.Color = value
-    end
-})
+                aimbot_fov_enable:AddColorPicker('aimbot_fov_color', {Default = Color3.fromRGB(255, 255, 255), Title = "Fov Color", Callback = function(value: boolean)
+                    aimbot_settings.circle.Color = value;
+                end});
 
-aimbot_groupbox:AddSlider('aimbot_fov_size', {
-    Text = 'FOV Size',
-    Default = 120,
-    Min = 10,
-    Max = 1000,
-    Rounding = 0,
-    Compact = false,
-    Callback = function(Value)
-        aimbot_settings.circle.Radius = Value
-    end
-})
+                aimbot_groupbox:AddSlider('aimbot_fov_size', {Text = 'Fov Size', Default = 1, Min = 1, Max = 1000, Rounding = 0, Compact = false, Callback = function(Value)
+                    aimbot_settings.circle.Radius = Value;
+                end});
 
+            end;
 
             local weapon_modifications_groupbox = combat:AddRightGroupbox("Weapon Modifications") do
 
@@ -189,15 +111,6 @@ aimbot_groupbox:AddSlider('aimbot_fov_size', {
                 weapon_modifications_groupbox:AddSlider('weapon_modifications_recoil_y', {Text = 'Recoil Y', Default = 100, Min = 0, Max = 100, Rounding = 0, Compact = false, Callback = function(Value)
                     weapon_modifications_settings.recoil_y = (Value / 100);
                 end});
-
-    
-
-
-               
-
-
-
-
 
                 --[[weapon_modifications_groupbox:AddSlider('weapon_modifications_firerate_multiplier', {Text = 'Firerate Multiplier', Default = 1, Min = 1, Max = 10, Rounding = 0, Compact = false, Callback = function(Value)
                     -- soon as i find a better method.
@@ -221,28 +134,24 @@ aimbot_groupbox:AddSlider('aimbot_fov_size', {
 
         local esp = window:AddTab("ESP") do
 
-    -- PLAYER
-    local player_box = esp:AddLeftGroupbox("Player") do
-        local skel = player_box:AddToggle('player_skel', {
-            Text = "Skeleton",
-            Default = false,
-            Callback = function(v)
-                player_esp.esp_player_settings.skeleton = v
-            end
-        })
+            local player_esp_groupbox = esp:AddLeftGroupbox("Player") do
 
-        
+                local player_esp_skelton = player_esp_groupbox:AddToggle('player_esp_skelton', {Text = "Skelton", Default = false, Callback = function(value: boolean)
+                    esp_player_settings.skelton = value;
+                end});
 
-        player_box:AddToggle('player_health', {
-            Text = "Health Bar",
-            Default = false,
-            Callback = function(v)
-                player_esp.esp_player_settings.health_bar = v
-            end
-        })
-    end
+                player_esp_skelton:AddColorPicker('player_esp_skelton_color', {Default = Color3.fromRGB(255, 255, 255), Title = "Skelton Color", Callback = function(value: boolean)
+                    esp_player_settings.skelton_color = value;
+                end});
 
-    
+                
+                player_esp_groupbox:AddToggle('player_esp_health_bar', {Text = "Health Bar", Default = false, Callback = function(value: boolean)
+                    esp_player_settings.health_bar = value;
+                end});
+
+            end;
+
+        end;
 
         local _local = window:AddTab("Local") do
 
