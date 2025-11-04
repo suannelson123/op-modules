@@ -16,6 +16,8 @@ local settings = {
     claymore_color  = Color3.fromRGB(255, 0, 0),
     drone_box       = true,
     drone_color     = Color3.fromRGB(0, 255, 255),
+    box_scale       = 1,        -- default 1x
+    gadget_color    = Color3.fromRGB(255, 165, 0)
 };
 
 local function to_view_point(worldPos: Vector3): (Vector2, boolean)
