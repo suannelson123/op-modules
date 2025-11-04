@@ -229,25 +229,52 @@ aimbot_groupbox:AddSlider('aimbot_fov_size', {
         end;
 
         local esp = window:AddTab("ESP") do
+    local player_esp_groupbox = esp:AddLeftGroupbox("Player") do
+        local player_esp_skelton = player_esp_groupbox:AddToggle('player_esp_skelton', {Text = "Skelton", Default = false, Callback = function(value: boolean)
+            esp_player_settings.skelton = value;
+        end});
+        player_esp_skelton:AddColorPicker('player_esp_skelton_color', {Default = Color3.fromRGB(255, 255, 255), Title = "Skelton Color", Callback = function(value: boolean)
+            esp_player_settings.skelton_color = value;
+        end});
+       
+        player_esp_groupbox:AddToggle('player_esp_health_bar', {Text = "Health Bar", Default = false, Callback = function(value: boolean)
+            esp_player_settings.health_bar = value;
+        end});
+    end;
 
-            local player_esp_groupbox = esp:AddLeftGroupbox("Player") do
-
-                local player_esp_skelton = player_esp_groupbox:AddToggle('player_esp_skelton', {Text = "Skelton", Default = false, Callback = function(value: boolean)
-                    esp_player_settings.skelton = value;
-                end});
-
-                player_esp_skelton:AddColorPicker('player_esp_skelton_color', {Default = Color3.fromRGB(255, 255, 255), Title = "Skelton Color", Callback = function(value: boolean)
-                    esp_player_settings.skelton_color = value;
-                end});
-
-                
-                player_esp_groupbox:AddToggle('player_esp_health_bar', {Text = "Health Bar", Default = false, Callback = function(value: boolean)
-                    esp_player_settings.health_bar = value;
-                end});
-
-            end;
-
-        end;
+    --  Gadget ESP 
+    local gadget_esp_groupbox = esp:AddRightGroupbox("Gadgets") do
+        gadget_esp_groupbox:AddToggle('gadget_esp_main', {Text = "Gadget ESP", Default = true, Callback = function(value: boolean)
+            esp_player_settings.gadget_esp = value;
+        end});
+        
+        local drone_toggle = gadget_esp_groupbox:AddToggle('drone_esp', {Text = "Drones", Default = true, Callback = function(value: boolean)
+            esp_player_settings.drone_esp = value;
+        end});
+        
+        local claymore_toggle = gadget_esp_groupbox:AddToggle('claymore_esp', {Text = "Claymores", Default = true, Callback = function(value: boolean)
+            esp_player_settings.claymore_esp = value;
+        end});
+        
+        local master_gadget = gadget_esp_groupbox:AddToggle('master_gadget_esp', {Text = "Master Toggle", Default = true, Callback = function(value: boolean)
+            esp_player_settings.gadget_esp = value;
+            esp_player_settings.drone_esp = value;
+            esp_player_settings.claymore_esp = value;
+            drone_toggle:SetValue(value);
+            claymore_toggle:SetValue(value);
+        end});
+        
+        master_gadget:AddColorPicker('gadget_esp_color', {Default = Color3.fromRGB(255, 165, 0), Title = "Gadget Color", Callback = function(value: Color3)
+            esp_player_settings.gadget_color = value;
+        end});
+        
+        gadget_esp_groupbox:AddSlider('gadget_esp_transparency', {Text = "Transparency", Default = 0.5, Min = 0, Max = 1, Rounding = 2, Callback = function(value: number)
+        end});
+        
+        gadget_esp_groupbox:AddSlider('gadget_esp_size', {Text = "Box Size", Default = 16, Min = 10, Max = 30, Rounding = 0, Callback = function(value: number)
+        end});
+    end;
+end;
 
         local _local = window:AddTab("Local") do
 
