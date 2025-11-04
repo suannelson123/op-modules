@@ -231,13 +231,7 @@ aimbot_groupbox:AddSlider('aimbot_fov_size', {
             end
         })
 
-        skel:AddColorPicker('player_skel_color', {
-            Default = Color3.fromRGB(255,255,255),
-            Title = "Skeleton Color",
-            Callback = function(c)
-                player_esp.esp_player_settings.skeleton_color = c
-            end
-        })
+        
 
         player_box:AddToggle('player_health', {
             Text = "Health Bar",
@@ -248,82 +242,7 @@ aimbot_groupbox:AddSlider('aimbot_fov_size', {
         })
     end
 
-    -- GADGETS
-    local gadget_box = esp:AddRightGroupbox("Gadgets") do
-
-        local master = gadget_box:AddToggle('master_gadget', {
-            Text = "Master Toggle",
-            Default = true,
-            Callback = function(v)
-                player_esp.esp_player_settings.claymore_box = v
-                player_esp.esp_player_settings.drone_box = v
-                claymore:SetValue(v)
-                drone:SetValue(v)
-            end
-        })
-
-        local claymore = gadget_box:AddToggle('claymore', {
-            Text = "Claymores",
-            Default = true,
-            Callback = function(v)
-                player_esp.esp_player_settings.claymore_box = v
-            end
-        })
-
-        local drone = gadget_box:AddToggle('drone', {
-            Text = "Drones",
-            Default = true,
-            Callback = function(v)
-                player_esp.esp_player_settings.drone_box = v
-            end
-        })
-
-        master:AddColorPicker('gadget_color', {
-            Default = Color3.fromRGB(255,165,0),
-            Title = "Gadget Color",
-            Callback = function(c)
-                player_esp.esp_player_settings.claymore_color = c
-                player_esp.esp_player_settings.drone_color = c
-            end
-        })
-
-        gadget_box:AddSlider('gadget_trans', {
-            Text = "Transparency",
-            Default = 1,
-            Min = 0, Max = 1, Rounding = 2,
-            Callback = function(v)
-                local alpha = 0.2 + (v * 0.8)
-                for _, d in pairs(claymore_drawings or {}) do
-                    if d.Visible then d.Transparency = alpha end
-                end
-                for _, d in pairs(drone_drawings or {}) do
-                    if d.Visible then d.Transparency = alpha end
-                end
-            end
-        })
-
-        gadget_box:AddSlider('gadget_size', {
-            Text = "Box Size",
-            Default = 1,
-            Min = 0.5, Max = 2, Rounding = 2,
-            Callback = function(scale)
-                player_esp.esp_player_settings.box_scale = scale
-                for _, d in pairs(claymore_drawings or {}) do
-                    if d.Visible and d._root then
-                        local s = d._root.Size * scale
-                        d.Size = Vector2.new(s.X, s.Y)
-                    end
-                end
-                for _, d in pairs(drone_drawings or {}) do
-                    if d.Visible and d._root then
-                        local s = d._root.Size * scale
-                        d.Size = Vector2.new(s.X, s.Y)
-                    end
-                end
-            end
-        })
-    end
-end
+    
 
         local _local = window:AddTab("Local") do
 
