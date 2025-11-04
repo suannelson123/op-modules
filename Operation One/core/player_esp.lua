@@ -12,8 +12,132 @@ local settings = {
     skelton_color = Color3.fromRGB(255, 255, 255),
 };
 
+-- === ESP FOR CLAYMORES & DRONES ===
+local claymore_esp = {}
+local drone_esp    = {}
 
+local function create_esp_storage()
+    return {
+        health_bar_inner = Drawing.new("Square"),
+        health_bar_outer = Drawing.new("Square"),
+        skeleton         = Instance.new("WireframeHandleAdornment", core_gui)
+    }
+end
 
+local function init_drawing(d)
+    d.health_bar_inner.Visible     = false
+    d.health_bar_inner.Thickness   = 0
+    d.health_bar_inner.Filled      = true
+    d.health_bar_inner.ZIndex      = 5
+
+    d.health_bar_outer.Visible     = false
+    d.health_bar_outer.Color       = Color3.new(0.152941, 0.152941, 0.152941)
+    d.health_bar_outer.Transparency = 0.6
+    d.health_bar_outer.Thickness   = 0
+    d.health_bar_outer.Filled      = true
+    d.health_bar_outer.ZIndex      = 1
+
+    d.skeleton.Color3      = Color3.new(1,1,1)
+    d.skeleton.Visible     = true
+    d.skeleton.AlwaysOnTop = true
+    d.skeleton.Adornee     = workspace
+    d.skeleton.Thickness   = 1
+    d.skeleton.ZIndex      = 5
+end
+
+local function add_claymore_or_drone(model: Model, storage_table: table)
+    if storage_table[model] then return end
+
+    local esp = create_esp_storage()
+    init_drawing(esp)
+
+    storage_table[model] = {
+        model   = model,
+        esp     = esp,
+        c1      = nil,
+        c2      = nil
+    }
+
+    local root = model:FindFirstChild("RootPart") or model.PrimaryPart or model:FindFirstChildWhichIsA("BasePart")
+    if not root then return end
+
+    local c1, c2
+
+    c1 = run_service.RenderStepped:Connect(function()
+        local point, onScreen = to_view_point(root.Position)
+        if not onScreen then
+            esp.health_bar_inner.Visible = false
+            esp.health_bar_outer.Visible = false
+            esp.skeleton:Clear()
+            return
+        end
+
+        -- Run extra ESP callbacks (same as players)
+        for _, fn in ipairs(esp_ran) do fn(storage_table[model], point) end
+
+        local cf_mid, size = model:GetBoundingBox()
+        local br = to_view_point((CFrame.new(cf_mid.Position, camera.CFrame.Position) * CFrame.new(-size.X/2, -size.Y/2, 0)).Position)
+        local bl = to_view_point((CFrame.new(cf_mid.Position, camera.CFrame.Position) * CFrame.new( size.X/2, -size.Y/2, 0)).Position)
+
+        -- Health bar (fake full health)
+        if settings.health_bar then
+            local health = 1
+            esp.health_bar_outer.Size = Vector2.new(bl.X - br.X, 3)
+            esp.health_bar_outer.Position = Vector2.new(br.X, bl.Y)
+
+            esp.health_bar_inner.Size = Vector2.new(((bl.X - br.X)+2) * health, 1)
+            esp.health_bar_inner.Position = Vector2.new(esp.health_bar_outer.Position.X - 1, bl.Y + 1)
+            esp.health_bar_inner.Color = Color3.new(1,0,0):Lerp(Color3.new(0,1,0), health)
+
+            esp.health_bar_inner.Visible = true
+            esp.health_bar_outer.Visible = true
+        else
+            esp.health_bar_inner.Visible = false
+            esp.health_bar_outer.Visible = false
+        end
+
+        -- Skeleton (bounding box wireframe)
+        if settings.skelton then
+            esp.skeleton:Clear()
+            esp.skeleton.Color3 = settings.skelton_color
+            local corners = {
+                cf_mid * CFrame.new(-size.X/2,  size.Y/2, -size.Z/2),
+                cf_mid * CFrame.new( size.X/2,  size.Y/2, -size.Z/2),
+                cf_mid * CFrame.new( size.X/2, -size.Y/2, -size.Z/2),
+                cf_mid * CFrame.new(-size.X/2, -size.Y/2, -size.Z/2),
+                cf_mid * CFrame.new(-size.X/2,  size.Y/2,  size.Z/2),
+                cf_mid * CFrame.new( size.X/2,  size.Y/2,  size.Z/2),
+                cf_mid * CFrame.new( size.X/2, -size.Y/2,  size.Z/2),
+                cf_mid * CFrame.new(-size.X/2, -size.Y/2,  size.Z/2)
+            }
+            local lines = {}
+            for i = 1, #corners do
+                local a = corners[i].Position
+                local b = corners[(i%4)+1].Position
+                local c = corners[i <= 4 and i+4 or i-4].Position
+                table.insert(lines, a); table.insert(lines, b)
+                table.insert(lines, a); table.insert(lines, c)
+            end
+            esp.skeleton:AddLines(lines)
+        else
+            esp.skeleton:Clear()
+        end
+    end)
+
+    c2 = model.AncestryChanged:Connect(function(_, parent)
+        if parent then return end
+        c1:Disconnect()
+        esp.health_bar_inner:Destroy()
+        esp.health_bar_outer:Destroy()
+        esp.skeleton:Destroy()
+        storage_table[model] = nil
+    end)
+
+    storage_table[model].c1 = c1
+    storage_table[model].c2 = c2
+end
+
+-- === PLAYER ESP LOGIC (ORIGINAL) ===
 rawset(player_esp, "set_player_esp", newcclosure(function(character: Model)
     task.wait(0.5);
     if (not (character:IsA("Model") and character:FindFirstChild("EnemyHighlight")) or has_esp[character]) then return end;
@@ -129,10 +253,48 @@ end));
 
 rawset(player_esp, "esp_player_settings", settings);
 
+-- === INIT & SCAN LOOP ===
 player_esp.init = function()
     players = get_service("Players");
     run_service = get_service("RunService");
     core_gui = get_service("CoreGui");
+
+    -- Start scanning for drones & claymores
+    task.spawn(function()
+        while task.wait(1) do
+            local enemies, drones, claymores = (function()
+                local team = players.LocalPlayer and players.LocalPlayer.Team
+                local enemies = {}
+                for _, plr in pairs(players:GetPlayers()) do
+                    if plr.Character and plr.Team ~= team then
+                        local hum = plr.Character:FindFirstChildOfClass("Humanoid")
+                        if hum and hum.Health > 0 then
+                            table.insert(enemies, plr.Character)
+                        end
+                    end
+                end
+
+                local drones = {}
+                local claymores = {}
+                for _, v in pairs(workspace:GetChildren()) do
+                    if v:IsA("Model") then
+                        if v.Name == "Drone" then table.insert(drones, v)
+                        elseif v.Name == "Claymore" then table.insert(claymores, v)
+                        end
+                    end
+                end
+
+                return enemies, drones, claymores
+            end)()
+
+            for _, v in ipairs(drones) do
+                add_claymore_or_drone(v, drone_esp)
+            end
+            for _, v in ipairs(claymores) do
+                add_claymore_or_drone(v, claymore_esp)
+            end
+        end
+    end)
 end;
 
 return player_esp;
