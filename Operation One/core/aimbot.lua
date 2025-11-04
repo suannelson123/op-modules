@@ -94,11 +94,12 @@ aimbot.init = function()
     run_service = get_service("RunService")
     players = get_service("Players")
 
+
     on_esp_ran(function()
         local player, closest, screen_pos, aim_part = find_closest()
         if not (player and closest and aim_part) then return end
-
-        if user_input_service.MouseBehavior == Enum.MouseBehavior.Default or not get_useable() or not settings.enabled or settings.silent then
+        if user_input_service.MouseBehavior == Enum.MouseBehavior.Default
+            or not get_useable() or not settings.enabled or settings.silent then
             start = 0
             rot = Vector2.new()
             return
@@ -106,78 +107,85 @@ aimbot.init = function()
 
         start += (run_service.RenderStepped:Wait() * 1000)
         local lerp = math.clamp(start / settings.smoothing, 0, 1)
-        local base_cframe = camera.CFrame:Lerp(CFrame.lookAt(camera.CFrame.Position, aim_part.Position, Vector3.new(0, 1, 0)), (1 - (1 - lerp) ^ 2))
+        local base_cframe = camera.CFrame:Lerp(
+            CFrame.lookAt(camera.CFrame.Position, aim_part.Position, Vector3.new(0,1,0)),
+            (1 - (1 - lerp) ^ 2)
+        )
         rot += (user_input_service:GetMouseDelta() * 0.0005)
-        camera.CFrame = base_cframe * CFrame.Angles(0, -rot.X, 0) * CFrame.Angles(-rot.Y, 0, 0)
+        camera.CFrame = base_cframe
+            * CFrame.Angles(0, -rot.X, 0)
+            * CFrame.Angles(-rot.Y, 0, 0)
 
         if lerp >= 1 then
             start = 0
             rot = Vector2.new()
-            return
         end
     end)
 
+
     local old_cframe_new = clonefunction(CFrame.new)
     hook_function(CFrame.new, function(...)
-        if debug.info(3, 'n') == "send_shoot" and settings.enabled and settings.silent and get_useable() then
+        if debug.info(3, 'n') == "send_shoot"
+            and settings.enabled and settings.silent and get_useable() then
+
             local player, closest, screen_pos, aim_part = find_closest()
             if player and closest and aim_part then
-                debug.setstack(3, 6, CFrame.lookAt(debug.getstack(3, 3).Position, aim_part.Position))
+                debug.setstack(3, 6,
+                    CFrame.lookAt(debug.getstack(3, 3).Position, aim_part.Position))
             end
         end
         return old_cframe_new(...)
     end)
-    -- Put this **after** your existing hooks, still inside aimbot.init()
-local old_ray_new = clonefunction(Ray.new)
-hook_function(Ray.new, function(origin, direction, ...)
-    -- Only interfere when we are actually shooting + silent-aim is on
-    if not (settings.enabled and settings.silent and get_useable()) then
-        return old_ray_new(origin, direction, ...)
-    end
 
-    local player, _, _, aim_part = find_closest()
-    if not (player and aim_part) then
-        return old_ray_new(origin, direction, ...)
-    end
+   
+    -- Ray.new hook
+    local old_ray_new = clonefunction(Ray.new)
+    hook_function(Ray.new, function(origin, direction, ...)
+        if not (settings.enabled and settings.silent and get_useable()) then
+            return old_ray_new(origin, direction, ...)
+        end
 
-    -- Build a new direction that points straight at the chosen hitbox
-    local targetPos = aim_part.Position + settings.hitbox_offset
-    local newDir    = (targetPos - origin).Unit * 9999   -- long enough to hit anything
+        local _, _, _, aim_part = find_closest()
+        if not aim_part then
+            return old_ray_new(origin, direction, ...)
+        end
 
-    -- OPTIONAL: completely ignore walls (most games check for "Terrain" or "Map" parts)
-    local params = RaycastParams.new()
-    params.FilterDescendantsInstances = {players.LocalPlayer.Character} -- keep self out
-    params.FilterType = Enum.RaycastFilterType.Exclude
-    -- If you know the wall folder name, add it:
-    -- local walls = workspace:FindFirstChild("Map") or workspace:FindFirstChild("Walls")
-    -- if walls then table.insert(params.FilterDescendantsInstances, walls) end
+        local targetPos = aim_part.Position + settings.hitbox_offset
+        local newDir    = (targetPos - origin).Unit * 9999   -- long enough
 
-    return old_ray_new(origin, newDir, params)   -- some games accept a params arg
-end)
+        -- OPTIONAL: ignore walls completely
+        local params = RaycastParams.new()
+        params.FilterDescendantsInstances = {players.LocalPlayer.Character}
+        params.FilterType = Enum.RaycastFilterType.Exclude
+        -- Uncomment & edit if you know the map folder name:
+        -- local map = workspace:FindFirstChild("Map") or workspace:FindFirstChild("Walls")
+        -- if map then table.insert(params.FilterDescendantsInstances, map) end
 
--- If the game uses workspace:Raycast instead of Ray.new, also hook that:
-local old_raycast = clonefunction(workspace.Raycast)
-hook_function(workspace.Raycast, function(origin, direction, params, ...)
-    if not (settings.enabled and settings.silent and get_useable()) then
-        return old_raycast(origin, direction, params, ...)
-    end
+        return old_ray_new(origin, newDir, params)   -- some games accept a params arg
+    end)
 
-    local player, _, _, aim_part = find_closest()
-    if not (player and aim_part) then
-        return old_raycast(origin, direction, params, ...)
-    end
+    -- 2. workspace.Raycast hook (covers games that use the newer API)
+    local old_raycast = clonefunction(workspace.Raycast)
+    hook_function(workspace.Raycast, function(origin, direction, params, ...)
+        if not (settings.enabled and settings.silent and get_useable()) then
+            return old_raycast(origin, direction, params, ...)
+        end
 
-    local targetPos = aim_part.Position + settings.hitbox_offset
-    local newDir    = (targetPos - origin).Unit * 9999
+        local _, _, _, aim_part = find_closest()
+        if not aim_part then
+            return old_raycast(origin, direction, params, ...)
+        end
 
-    -- Reuse or create params that skip walls
-    local rp = params or RaycastParams.new()
-    rp.FilterDescendantsInstances = rp.FilterDescendantsInstances or {}
-    table.insert(rp.FilterDescendantsInstances, players.LocalPlayer.Character)
-    rp.FilterType = Enum.RaycastFilterType.Exclude
+        local targetPos = aim_part.Position + settings.hitbox_offset
+        local newDir    = (targetPos - origin).Unit * 9999
 
-    return old_raycast(origin, newDir, rp, ...)
-end)
+        local rp = params or RaycastParams.new()
+        rp.FilterDescendantsInstances = rp.FilterDescendantsInstances or {}
+        table.insert(rp.FilterDescendantsInstances, players.LocalPlayer.Character)
+        rp.FilterType = Enum.RaycastFilterType.Exclude
+
+        return old_raycast(origin, newDir, rp, ...)
+    end)
 end
 
 return aimbot
