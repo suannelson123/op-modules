@@ -137,8 +137,33 @@ local function add_object_esp(obj: Instance, color: Color3)
         end
 
         local cf, size = obj:GetBoundingBox()
-        local pos, on = to_view_point(cf.Position)
-        if not on then
+        local corners = {
+            cf * Vector3.new(-size.X/2, -size.Y/2, -size.Z/2),
+            cf * Vector3.new(-size.X/2, -size.Y/2,  size.Z/2),
+            cf * Vector3.new(-size.X/2,  size.Y/2, -size.Z/2),
+            cf * Vector3.new(-size.X/2,  size.Y/2,  size.Z/2),
+            cf * Vector3.new( size.X/2, -size.Y/2, -size.Z/2),
+            cf * Vector3.new( size.X/2, -size.Y/2,  size.Z/2),
+            cf * Vector3.new( size.X/2,  size.Y/2, -size.Z/2),
+            cf * Vector3.new( size.X/2,  size.Y/2,  size.Z/2),
+        }
+
+        local minX, minY = math.huge, math.huge
+        local maxX, maxY = -math.huge, -math.huge
+        local visible = false
+
+        for _, corner in ipairs(corners) do
+            local screenPos, onScreen = camera:WorldToViewportPoint(corner)
+            if onScreen then
+                visible = true
+                minX = math.min(minX, screenPos.X)
+                minY = math.min(minY, screenPos.Y)
+                maxX = math.max(maxX, screenPos.X)
+                maxY = math.max(maxY, screenPos.Y)
+            end
+        end
+
+        if not visible then
             box.Visible = false
             return
         end
@@ -149,19 +174,17 @@ local function add_object_esp(obj: Instance, color: Color3)
             box.Color = settings.drone_color
         end
 
-        local screen_size = (camera:WorldToViewportPoint(cf.Position + Vector3.new(size.X, size.Y, 0)))
-        local screen_pos = (camera:WorldToViewportPoint(cf.Position - Vector3.new(size.X, size.Y, 0)))
+        local width = maxX - minX
+        local height = maxY - minY
 
-        local w = math.abs(screen_size.X - screen_pos.X)
-        local h = math.abs(screen_size.Y - screen_pos.Y)
-
-        box.Size = Vector2.new(w, h)
-        box.Position = Vector2.new(pos.X - w / 2, pos.Y - h / 2)
+        box.Size = Vector2.new(width, height)
+        box.Position = Vector2.new(minX, minY)
         box.Visible = true
     end)
 
     object_esp[obj] = { box = box, conn = conn }
 end
+
 
 
 
