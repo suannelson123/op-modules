@@ -12,8 +12,8 @@ local settings = {
     health_bar = false,
     skelton = false,
     skelton_color = Color3.fromRGB(255, 255, 255),
-    show_claymores = true,
-    show_drones = true,
+    show_claymores = false,
+    show_drones = false,
     claymore_color = Color3.fromRGB(255, 0, 0),
     drone_color = Color3.fromRGB(0, 255, 255),
 }
