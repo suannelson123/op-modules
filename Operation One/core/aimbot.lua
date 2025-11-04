@@ -12,7 +12,7 @@ local settings = {
     circle = Drawing.new("Circle"),
     screen_middle = (camera.ViewportSize / 2),
     smoothing = 200,
-    pressed = "aiming",  -- "shooting", "aiming", "any", "None"
+    pressed = "aiming",  
 
     hitbox_priority = {"head","torso","shoulder1","shoulder2","arm1","arm2","hip1","hip2","leg1","leg2"},
     hitbox_offset = Vector3.new(0,0,0)
@@ -27,7 +27,6 @@ circle.Thickness = 1
 circle.Color = Color3.new(1, 1, 1)
 circle.Position = screen_middle
 
--- Helper: Check if aimbot should activate
 local function get_useable()
     return (
         settings.pressed == "None" and true
@@ -40,7 +39,6 @@ local function get_useable()
     ) or false
 end
 
--- Find closest enemy using Viewmodels + EnemyHighlight
 local function find_closest()
     local PlayerAmt = players:GetPlayers()
     local ClosestPlayer, ClosestViewmodel, ClosestScreenPos, ClosestPart
@@ -82,13 +80,11 @@ end
 
 rawset(aimbot, "aimbot_settings", settings)
 
--- Initialize all hooks
 aimbot.init = function()
     user_input_service = get_service("UserInputService")
     run_service = get_service("RunService")
     players = get_service("Players")
 
-    -- Visual aimbot
     on_esp_ran(function()
         local player, closest, screen_pos, aim_part = find_closest()
         if not (player and closest and aim_part) then return end
@@ -109,7 +105,6 @@ aimbot.init = function()
         if lerp >= 1 then start = 0; rot = Vector2.new() end
     end)
 
-    -- Silent Aim (CFrame)
     local old_cframe_new = clonefunction(CFrame.new)
     hook_function(CFrame.new, function(...)
         if debug.info(3, 'n') == "send_shoot" and settings.enabled and settings.silent and get_useable() then
@@ -121,15 +116,16 @@ aimbot.init = function()
         return old_cframe_new(...)
     end)
 
-    -- BULLET THROUGH WALLS: Hook InvokeServer (RemoteFunction)
     local old_invoke = clonefunction(Instance.InvokeServer)
     hook_function(Instance.InvokeServer, function(self, ...)
         if not (settings.enabled and settings.silent and get_useable()) then
             return old_invoke(self, ...)
         end
-        if not (self.Name == "Shoot" and self.Parent == game.ReplicatedStorage.Remotes) then
+      --[[
+              if not (self.Name == "Shoot" and self.Parent == game.ReplicatedStorage.Remotes) then
             return old_invoke(self, ...)
         end
+      ]]
 
         local args = {...}
         if #args < 2 or typeof(args[1]) ~= "Vector3" or typeof(args[2]) ~= "Vector3" then
