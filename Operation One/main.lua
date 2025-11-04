@@ -11,12 +11,10 @@ do
         return
     end
 
+do
+    if getgenv().loaded then return end
 
-
-
-   do 
-    local base_url = "https://raw.githubusercontent.com/suannelson123/op-modules/main/Operation%20One/" 
-
+    local base_url = "https://raw.githubusercontent.com/suannelson123/op-modules/main/Operation%20One/"
     local includes = {
         "sdk/memory.lua",
         "sdk/misc.lua",
@@ -32,57 +30,61 @@ do
         local url = base_url .. file
         print("[Includes] Fetching:", url)
 
-        local ok, response = pcall(function()
+        local ok, resp = pcall(function()
             return game:HttpGet(url, true)
         end)
 
-        if not ok or not response or response == "" then
-            warn("[Includes] Failed to fetch:", file, "-", response or "nil / empty response")
+        if not ok or not resp or resp == "" then
+            warn("[Includes] Failed:", file, resp or "nil")
             continue
         end
 
-        local first8 = tostring(response):sub(1, 8)
-        if first8:match("^%s*<") or response:find("404") or response:find("Not Found") then
-            warn("[Includes] Bad response (probably HTML). Check URL or repo visibility:", url)
-            warn("[Includes] response snippet:", tostring(response):sub(1, 200))
-            continue
-        end
-
-        local chunk, loadErr = loadstring(response)
+        local chunk, err = loadstring(resp, file)
         if not chunk then
-            warn("[Includes] Failed to compile:", file, "-", loadErr)
+            warn("[Includes] Compile error:", file, err)
             continue
         end
 
         local success, result = pcall(chunk)
         if not success then
-            warn("[Includes] Runtime error when executing:", file, "-", result)
+            warn("[Includes] Runtime error:", file, result)
             continue
         end
 
+        -- **FORCE a table**
         if type(result) ~= "table" then
-            warn("[Includes] Module did not return a table:", file)
-            continue
+            warn("[Includes] Not a table → creating stub:", file)
+            result = {}
         end
 
-        for i, v in next, result do
-            if i == "init" and type(v) == "function" then
+        for k, v in next, result do
+            if k == "init" and type(v) == "function" then
                 table.insert(inits, v)
             else
-                rawset(getfenv(1), i, v)
+                rawset(getfenv(1), k, v)
             end
         end
     end
 
-    for _, init in next, inits do
-        local ok2, err2 = pcall(init)
-        if not ok2 then
-            warn("[Includes] init() error:", err2)
-        end
+    for _, fn in next, inits do
+        local ok, err = pcall(fn)
+        if not ok then warn("[Includes] init error:", err) end
     end
 end
 
-end
+    
+player_esp = player_esp or {}
+player_esp.esp_player_settings = player_esp.esp_player_settings or {
+    health_bar      = false,
+    skeleton        = false,
+    skeleton_color  = Color3.fromRGB(255,255,255),
+    claymore_box    = true,
+    claymore_color  = Color3.fromRGB(255,0,0),
+    drone_box       = true,
+    drone_color     = Color3.fromRGB(0,255,255),
+    box_scale       = 1,
+    gadget_color    = Color3.fromRGB(255,165,0)
+}
 
 
     local camera:               Camera = cloneref(workspace.CurrentCamera);
@@ -230,120 +232,103 @@ aimbot_groupbox:AddSlider('aimbot_fov_size', {
 
         local esp = window:AddTab("ESP") do
 
-    local player_esp_groupbox = esp:AddLeftGroupbox("Player") do
-
-        local skeleton_toggle = player_esp_groupbox:AddToggle('player_esp_skeleton', {
+    -- PLAYER
+    local player_box = esp:AddLeftGroupbox("Player") do
+        local skel = player_box:AddToggle('player_skel', {
             Text = "Skeleton",
             Default = false,
-            Callback = function(value)
-                player_esp.esp_player_settings.skeleton = value
+            Callback = function(v)
+                player_esp.esp_player_settings.skeleton = v
             end
         })
 
-        skeleton_toggle:AddColorPicker('player_esp_skeleton_color', {
-            Default = Color3.fromRGB(255, 255, 255),
+        skel:AddColorPicker('player_skel_color', {
+            Default = Color3.fromRGB(255,255,255),
             Title = "Skeleton Color",
-            Callback = function(color)
-                player_esp.esp_player_settings.skeleton_color = color
+            Callback = function(c)
+                player_esp.esp_player_settings.skeleton_color = c
             end
         })
 
-        player_esp_groupbox:AddToggle('player_esp_health_bar', {
+        player_box:AddToggle('player_health', {
             Text = "Health Bar",
             Default = false,
-            Callback = function(value)
-                player_esp.esp_player_settings.health_bar = value
+            Callback = function(v)
+                player_esp.esp_player_settings.health_bar = v
             end
         })
     end
 
-    local gadget_esp_groupbox = esp:AddRightGroupbox("Gadgets") do
+    -- GADGETS
+    local gadget_box = esp:AddRightGroupbox("Gadgets") do
 
-        local master_gadget = gadget_esp_groupbox:AddToggle('master_gadget_esp', {
+        local master = gadget_box:AddToggle('master_gadget', {
             Text = "Master Toggle",
             Default = true,
-            Callback = function(value)
-                player_esp.esp_player_settings.claymore_box = value
-                player_esp.esp_player_settings.drone_box = value
-                claymore_toggle:SetValue(value)
-                drone_toggle:SetValue(value)
+            Callback = function(v)
+                player_esp.esp_player_settings.claymore_box = v
+                player_esp.esp_player_settings.drone_box = v
+                claymore:SetValue(v)
+                drone:SetValue(v)
             end
         })
 
-        local drone_toggle = gadget_esp_groupbox:AddToggle('drone_esp', {
-            Text = "Drones",
-            Default = true,
-            Callback = function(value)
-                player_esp.esp_player_settings.drone_box = value
-            end
-        })
-
-        local claymore_toggle = gadget_esp_groupbox:AddToggle('claymore_esp', {
+        local claymore = gadget_box:AddToggle('claymore', {
             Text = "Claymores",
             Default = true,
-            Callback = function(value)
-                player_esp.esp_player_settings.claymore_box = value
+            Callback = function(v)
+                player_esp.esp_player_settings.claymore_box = v
             end
         })
 
-        master_gadget:AddColorPicker('gadget_esp_color', {
-            Default = Color3.fromRGB(255, 165, 0),
+        local drone = gadget_box:AddToggle('drone', {
+            Text = "Drones",
+            Default = true,
+            Callback = function(v)
+                player_esp.esp_player_settings.drone_box = v
+            end
+        })
+
+        master:AddColorPicker('gadget_color', {
+            Default = Color3.fromRGB(255,165,0),
             Title = "Gadget Color",
-            Callback = function(color)
-                player_esp.esp_player_settings.claymore_color = color
-                player_esp.esp_player_settings.drone_color = color
+            Callback = function(c)
+                player_esp.esp_player_settings.claymore_color = c
+                player_esp.esp_player_settings.drone_color = c
             end
         })
 
-        gadget_esp_groupbox:AddSlider('gadget_esp_transparency', {
+        gadget_box:AddSlider('gadget_trans', {
             Text = "Transparency",
             Default = 1,
-            Min = 0,
-            Max = 1,
-            Rounding = 2,
-            Callback = function(value)
-                local alpha = 0.2 + (value * 0.8)
-                for _, drawing in pairs(claymore_drawings) do
-                    if drawing.Visible then
-                        drawing.Transparency = alpha
-                    end
+            Min = 0, Max = 1, Rounding = 2,
+            Callback = function(v)
+                local alpha = 0.2 + (v * 0.8)
+                for _, d in pairs(claymore_drawings or {}) do
+                    if d.Visible then d.Transparency = alpha end
                 end
-                for _, drawing in pairs(drone_drawings) do
-                    if drawing.Visible then
-                        drawing.Transparency = alpha
-                    end
+                for _, d in pairs(drone_drawings or {}) do
+                    if d.Visible then d.Transparency = alpha end
                 end
             end
         })
 
-        gadget_esp_groupbox:AddSlider('gadget_esp_size', {
+        gadget_box:AddSlider('gadget_size', {
             Text = "Box Size",
             Default = 1,
-            Min = 0.5,
-            Max = 2,
-            Rounding = 2,
+            Min = 0.5, Max = 2, Rounding = 2,
             Callback = function(scale)
                 player_esp.esp_player_settings.box_scale = scale
-                for _, drawing in pairs(claymore_drawings) do
-                    if drawing.Visible then
-                        local root = drawing.Adornee or drawing._root
-                        if root then
-                            local base = root.Size
-                            local w = base.X * scale
-                            local h = base.Y * scale
-                            drawing.Size = Vector2.new(w, h)
-                        end
+                for _, d in pairs(claymore_drawings or {}) do
+                    if d.Visible and d._root then
+                        local s = d._root.Size * scale
+                        d.Size = Vector2.new(s.X, s.Y)
                     end
                 end
-                for _, drawing in pairs(drone_drawings) do
-                    if drawing.Visible then
-                        local root = drawing.Adornee or drawing._root
-                        if root then
-                            local base = root.Size
-                            local w = base.X * scale
-                            local h = base.Y * scale
-                            drawing.Size = Vector2.new(w, h)
-                        end
+                for _, d in pairs(drone_drawings or {}) do
+                    if d.Visible and d._root then
+                        local s = d._root.Size * scale
+                        d.Size = Vector2.new(s.X, s.Y)
                     end
                 end
             end
