@@ -230,9 +230,6 @@ aimbot_groupbox:AddSlider('aimbot_fov_size', {
 
         local esp = window:AddTab("ESP") do
 
-    --=====================================================================
-    -- PLAYER ESP (Left)
-    --=====================================================================
     local player_esp_groupbox = esp:AddLeftGroupbox("Player") do
 
         local skeleton_toggle = player_esp_groupbox:AddToggle('player_esp_skeleton', {
@@ -260,12 +257,8 @@ aimbot_groupbox:AddSlider('aimbot_fov_size', {
         })
     end
 
-    --=====================================================================
-    -- GADGET ESP (Right) – Claymore + Drone
-    --=====================================================================
     local gadget_esp_groupbox = esp:AddRightGroupbox("Gadgets") do
 
-        -- Master Toggle (controls both)
         local master_gadget = gadget_esp_groupbox:AddToggle('master_gadget_esp', {
             Text = "Master Toggle",
             Default = true,
@@ -277,7 +270,6 @@ aimbot_groupbox:AddSlider('aimbot_fov_size', {
             end
         })
 
-        -- Drone Toggle
         local drone_toggle = gadget_esp_groupbox:AddToggle('drone_esp', {
             Text = "Drones",
             Default = true,
@@ -286,7 +278,6 @@ aimbot_groupbox:AddSlider('aimbot_fov_size', {
             end
         })
 
-        -- Claymore Toggle
         local claymore_toggle = gadget_esp_groupbox:AddToggle('claymore_esp', {
             Text = "Claymores",
             Default = true,
@@ -295,7 +286,6 @@ aimbot_groupbox:AddSlider('aimbot_fov_size', {
             end
         })
 
-        -- Shared Color Picker
         master_gadget:AddColorPicker('gadget_esp_color', {
             Default = Color3.fromRGB(255, 165, 0),
             Title = "Gadget Color",
@@ -305,7 +295,6 @@ aimbot_groupbox:AddSlider('aimbot_fov_size', {
             end
         })
 
-        -- Transparency Slider
         gadget_esp_groupbox:AddSlider('gadget_esp_transparency', {
             Text = "Transparency",
             Default = 1,
@@ -313,10 +302,7 @@ aimbot_groupbox:AddSlider('aimbot_fov_size', {
             Max = 1,
             Rounding = 2,
             Callback = function(value)
-                -- Note: Your current ESP uses `Transparency = 1` (fully opaque)
-                -- We'll map 0 → 0.2, 1 → 1.0 for visual control
                 local alpha = 0.2 + (value * 0.8)
-                -- Apply to all active drawings (you can expand this)
                 for _, drawing in pairs(claymore_drawings) do
                     if drawing.Visible then
                         drawing.Transparency = alpha
@@ -330,7 +316,6 @@ aimbot_groupbox:AddSlider('aimbot_fov_size', {
             end
         })
 
-        -- Box Size Multiplier
         gadget_esp_groupbox:AddSlider('gadget_esp_size', {
             Text = "Box Size",
             Default = 1,
@@ -338,9 +323,7 @@ aimbot_groupbox:AddSlider('aimbot_fov_size', {
             Max = 2,
             Rounding = 2,
             Callback = function(scale)
-                -- Store scale for future boxes
                 player_esp.esp_player_settings.box_scale = scale
-                -- Resize existing boxes
                 for _, drawing in pairs(claymore_drawings) do
                     if drawing.Visible then
                         local root = drawing.Adornee or drawing._root
