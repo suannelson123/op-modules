@@ -16,9 +16,6 @@ local settings = {
     show_drones = true,
 }
 
----------------------------------------------------------------------
--- PLAYER ESP
----------------------------------------------------------------------
 
 rawset(player_esp, "set_player_esp", newcclosure(function(character: Model)
     task.wait(0.5)
@@ -115,9 +112,6 @@ rawset(player_esp, "set_player_esp", newcclosure(function(character: Model)
     end)
 end))
 
----------------------------------------------------------------------
--- OBJECT (CLAYMORE / DRONE) ESP
----------------------------------------------------------------------
 
 local function add_object_esp(obj: Instance, color: Color3)
     if object_esp[obj] then return end
@@ -159,9 +153,6 @@ local function add_object_esp(obj: Instance, color: Color3)
     object_esp[obj] = { box = box, conn = conn }
 end
 
----------------------------------------------------------------------
--- WATCH FOR NEW CLAYMORES AND DRONES
----------------------------------------------------------------------
 
 local function track_objects()
     for _, obj in ipairs(workspace:GetChildren()) do
@@ -181,9 +172,6 @@ local function track_objects()
     end)
 end
 
----------------------------------------------------------------------
--- MISC API
----------------------------------------------------------------------
 
 rawset(player_esp, "on_esp_ran", newcclosure(function(func)
     table.insert(esp_ran, func)
