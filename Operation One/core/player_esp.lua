@@ -143,7 +143,6 @@ local function add_object_esp(obj: Instance, color: Color3)
             return
         end
 
-        -- 🔄 Update box color live every frame
         if obj.Name == "Claymore" then
             box.Color = settings.claymore_color
         elseif obj.Name == "Drone" then
