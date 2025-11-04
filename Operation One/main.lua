@@ -56,8 +56,6 @@ if (not (game:IsLoaded() and getgenv().drawingLoaded)) then repeat task.wait() u
         local save_manager = loadstring(game:HttpGet("https://raw.githubusercontent.com/violin-suzutsuki/LinoriaLib/main/addons/SaveManager.lua"))()
         local window = library:CreateWindow({Title = "KLUB | Pid: " .. game.PlaceVersion, Center = true, AutoShow = true, TabPadding = 8, MenuFadeTime = 0.2});
 
-        -- Link UI to modules exported into environment by your include loader
-        -- assumes `aimbot` `weapon_modifications_settings` `esp_player_settings` `attachment_editor_settings` exist
         local aimbot_module = rawget(getfenv(1), "aimbot") or aimbot
         local aimbot_settings = aimbot_module and aimbot_module.aimbot_settings or (rawget(getfenv(1), "aimbot_settings") or {})
 
@@ -65,7 +63,6 @@ if (not (game:IsLoaded() and getgenv().drawingLoaded)) then repeat task.wait() u
         local esp_player_settings = rawget(getfenv(1), "esp_player_settings") or {}
         local attachment_editor_settings = rawget(getfenv(1), "attachment_editor_settings") or {}
 
-        -- Ensure defaults match module expectations
         aimbot_settings.smoothing = aimbot_settings.smoothing or 200
         aimbot_settings.circle = aimbot_settings.circle or Drawing.new("Circle")
         aimbot_settings.circle.Visible = aimbot_settings.circle.Visible or false
@@ -77,7 +74,6 @@ if (not (game:IsLoaded() and getgenv().drawingLoaded)) then repeat task.wait() u
 
                 aimbot_groupbox:AddToggle('aimbot_enable', {Text = "Enable", Default = aimbot_settings.enabled or false, Callback = function(value: boolean)
                     aimbot_settings.enabled = value;
-                    -- init the aimbot module when enabling (safe-guard to not re-init if already initialized)
                     if value and aimbot_module and type(aimbot_module.init) == "function" then
                         pcall(function() aimbot_module.init() end)
                     end
@@ -102,12 +98,11 @@ if (not (game:IsLoaded() and getgenv().drawingLoaded)) then repeat task.wait() u
                     end
                     return 3
                 end)(), Multi = false, Text = 'Target', Callback = function(Value)
-                    -- map dropdown to hitbox priority
                     if Value == "head" then
                         aimbot_settings.hitbox_priority = {"head","torso","shoulder1","shoulder2","arm1","arm2","hip1","hip2","leg1","leg2"}
                     elseif Value == "torso" then
                         aimbot_settings.hitbox_priority = {"torso","head","shoulder1","shoulder2","arm1","arm2","hip1","hip2","leg1","leg2"}
-                    else -- closest
+                    else
                         aimbot_settings.hitbox_priority = {"head","torso","shoulder1","shoulder2","arm1","arm2","hip1","hip2","leg1","leg2"}
                     end
                 end});
