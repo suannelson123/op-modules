@@ -139,53 +139,62 @@ aimbot.init = function()
 
    
     -- Ray.new hook
-    local old_ray_new = clonefunction(Ray.new)
-    hook_function(Ray.new, function(origin, direction, ...)
-        if not (settings.enabled and settings.silent and get_useable()) then
-            return old_ray_new(origin, direction, ...)
-        end
+   local old_ray_new = clonefunction(Ray.new)
+hook_function(Ray.new, function(origin, direction, ...)
+    if not (settings.enabled and settings.silent and get_useable()) then
+        return old_ray_new(origin, direction, ...)
+    end
 
-        local _, _, _, aim_part = find_closest()
-        if not aim_part then
-            return old_ray_new(origin, direction, ...)
-        end
+    local _, _, _, aim_part = find_closest()
+    if not aim_part then
+        return old_ray_new(origin, direction, ...)
+    end
 
-        local targetPos = aim_part.Position + settings.hitbox_offset
-        local newDir    = (targetPos - origin).Unit * 9999   -- long enough
+    local targetPos = aim_part.Position + settings.hitbox_offset
+    local newDir = (targetPos - origin).Unit * math.random(8500, 11500)
 
-        -- OPTIONAL: ignore walls completely
-        local params = RaycastParams.new()
-        params.FilterDescendantsInstances = {players.LocalPlayer.Character}
-        params.FilterType = Enum.RaycastFilterType.Exclude
-        -- Uncomment & edit if you know the map folder name:
-        -- local map = workspace:FindFirstChild("Map") or workspace:FindFirstChild("Walls")
-        -- if map then table.insert(params.FilterDescendantsInstances, map) end
+    local params = RaycastParams.new()
+    params.FilterType = Enum.RaycastFilterType.Exclude
+    params.FilterDescendantsInstances = {players.LocalPlayer.Character}
 
-        return old_ray_new(origin, newDir, params)   -- some games accept a params arg
-    end)
+    local map_folder = workspace:FindFirstChild("Map") or workspace:FindFirstChild("Buildings")
+    if map_folder then
+        table.insert(params.FilterDescendantsInstances, map_folder)
+    end
 
-    -- 2. workspace.Raycast hook (covers games that use the newer API)
-    local old_raycast = clonefunction(workspace.Raycast)
-    hook_function(workspace.Raycast, function(origin, direction, params, ...)
-        if not (settings.enabled and settings.silent and get_useable()) then
-            return old_raycast(origin, direction, params, ...)
-        end
+    return old_ray_new(origin, newDir, params)
+end)
 
-        local _, _, _, aim_part = find_closest()
-        if not aim_part then
-            return old_raycast(origin, direction, params, ...)
-        end
+    --  workspace.Raycast hook
+  local old_raycast = clonefunction(workspace.Raycast)
+hook_function(workspace.Raycast, function(origin, direction, params, ...)
+    if not (settings.enabled and settings.silent and get_useable()) then
+        return old_raycast(origin, direction, params, ...)
+    end
 
-        local targetPos = aim_part.Position + settings.hitbox_offset
-        local newDir    = (targetPos - origin).Unit * 9999
+    local _, _, _, aim_part = find_closest()
+    if not aim_part then
+        return old_raycast(origin, direction, params, ...)
+    end
 
-        local rp = params or RaycastParams.new()
-        rp.FilterDescendantsInstances = rp.FilterDescendantsInstances or {}
-        table.insert(rp.FilterDescendantsInstances, players.LocalPlayer.Character)
-        rp.FilterType = Enum.RaycastFilterType.Exclude
+    local targetPos = aim_part.Position + settings.hitbox_offset
+    local newDir = (targetPos - origin).Unit * math.random(9000, 11000)  -- slight randomness
 
-        return old_raycast(origin, newDir, rp, ...)
-    end)
+    -- Build safe RaycastParams
+    local rp = params or RaycastParams.new()
+    rp.FilterDescendantsInstances = rp.FilterDescendantsInstances or {}
+    rp.FilterType = Enum.RaycastFilterType.Exclude
+
+    local char = players.LocalPlayer.Character
+    if char then table.insert(rp.FilterDescendantsInstances, char) end
+
+    local map_folder = workspace:FindFirstChild("Map") or workspace:FindFirstChild("Buildings")
+    if map_folder then
+        table.insert(rp.FilterDescendantsInstances, map_folder)
+    end
+
+    return old_raycast(origin, newDir, rp, ...)
+end)
 end
 
 return aimbot
