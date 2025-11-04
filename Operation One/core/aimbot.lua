@@ -1,4 +1,3 @@
---=== Aimbot Module ===--
 local aimbot = {}
 local user_input_service
 local run_service
@@ -143,5 +142,4 @@ aimbot.init = function()
     end)
 end
 
---=== Return for UI ===--
 return aimbot
