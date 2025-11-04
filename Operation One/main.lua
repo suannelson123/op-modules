@@ -73,18 +73,7 @@ do
 end
 
     
-player_esp = player_esp or {}
-player_esp.esp_player_settings = player_esp.esp_player_settings or {
-    health_bar      = false,
-    skeleton        = false,
-    skeleton_color  = Color3.fromRGB(255,255,255),
-    claymore_box    = true,
-    claymore_color  = Color3.fromRGB(255,0,0),
-    drone_box       = true,
-    drone_color     = Color3.fromRGB(0,255,255),
-    box_scale       = 1,
-    gadget_color    = Color3.fromRGB(255,165,0)
-}
+
 
 
     local camera:               Camera = cloneref(workspace.CurrentCamera);
