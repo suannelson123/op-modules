@@ -145,13 +145,14 @@ rawset(player_esp, "esp_player_settings", settings);
 local claymore_drawings = {};
 local drone_drawings    = {};
 
-local function create_box_drawing(color: Color3)
+local function create_box_drawing(color: Color3, rootPart)
     local box = Drawing.new("Square");
     box.Thickness    = 2;
     box.Filled       = false;
     box.Color        = color;
     box.Transparency = 1;
     box.Visible      = false;
+    box._root        = rootPart  
     return box;
 end
 
@@ -160,7 +161,7 @@ local function update_claymore_drone()
         if claymore.Name == "Claymore" and claymore:IsA("Model") then
             local root = claymore:FindFirstChild("RootPart") or claymore.PrimaryPart;
             if root then
-                local drawing = claymore_drawings[claymore] or create_box_drawing(settings.claymore_color);
+                local drawing = claymore_drawings[claymore] or create_box_drawing(settings.claymore_color, root);
                 claymore_drawings[claymore] = drawing;
 
                 local pos, onScreen = to_view_point(root.Position);
