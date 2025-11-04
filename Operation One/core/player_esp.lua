@@ -20,6 +20,7 @@ local settings = {
 
 
 
+
 rawset(player_esp, "set_player_esp", newcclosure(function(character: Model)
     task.wait(0.5)
     if not (character:IsA("Model") and character:FindFirstChild("EnemyHighlight")) or has_esp[character] then return end
@@ -142,6 +143,13 @@ local function add_object_esp(obj: Instance, color: Color3)
             return
         end
 
+        -- 🔄 Update box color live every frame
+        if obj.Name == "Claymore" then
+            box.Color = settings.claymore_color
+        elseif obj.Name == "Drone" then
+            box.Color = settings.drone_color
+        end
+
         local screen_size = (camera:WorldToViewportPoint(cf.Position + Vector3.new(size.X, size.Y, 0)))
         local screen_pos = (camera:WorldToViewportPoint(cf.Position - Vector3.new(size.X, size.Y, 0)))
 
@@ -155,6 +163,7 @@ local function add_object_esp(obj: Instance, color: Color3)
 
     object_esp[obj] = { box = box, conn = conn }
 end
+
 
 
 local function track_objects()
