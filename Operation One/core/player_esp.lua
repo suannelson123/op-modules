@@ -14,7 +14,10 @@ local settings = {
     skelton_color = Color3.fromRGB(255, 255, 255),
     show_claymores = true,
     show_drones = true,
+    claymore_color = Color3.fromRGB(255, 0, 0),
+    drone_color = Color3.fromRGB(0, 255, 255),
 }
+
 
 
 rawset(player_esp, "set_player_esp", newcclosure(function(character: Model)
