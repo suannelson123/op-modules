@@ -1,3 +1,4 @@
+--=== Aimbot Module ===--
 local aimbot = {}
 local user_input_service
 local run_service
@@ -13,7 +14,6 @@ local settings = {
     screen_middle = (camera.ViewportSize / 2),
     smoothing = 200,
     pressed = "aiming",  
-
     hitbox_priority = {"head","torso","shoulder1","shoulder2","arm1","arm2","hip1","hip2","leg1","leg2"},
     hitbox_offset = Vector3.new(0,0,0)
 }
@@ -143,4 +143,5 @@ aimbot.init = function()
     end)
 end
 
+--=== Return for UI ===--
 return aimbot
