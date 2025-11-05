@@ -10,7 +10,7 @@ rawset(weapon_modifications, "weapon_modifications_settings", settings)
 
 weapon_modifications.init = function()
 
-    -- Hook Random.new():NextNumber()
+    
     local old_nextnumber
     old_nextnumber = hookmetamethod(Random.new(), "__index", newcclosure(function(self, key)
         if key == "NextNumber" then
@@ -19,7 +19,6 @@ weapon_modifications.init = function()
                 if settings.no_spread then
                     local caller = debug.info(3, "n")
                     if caller and (caller:lower():find("shoot") or caller:lower():find("fire")) then
-                        -- Neutralize spread
                         return 0
                     end
                 end
@@ -29,7 +28,6 @@ weapon_modifications.init = function()
         return old_nextnumber(self, key)
     end))
 
-    -- Hook recoil + reload as before
     local old_tweenInfo_new = clonefunction(TweenInfo.new)
     hook_function(TweenInfo.new, newcclosure(function(...)
         if (debug.info(3, 'n') == "recoil_function") then
