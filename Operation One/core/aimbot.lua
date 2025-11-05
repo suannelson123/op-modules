@@ -13,11 +13,15 @@ local settings = {
     screen_middle = (camera.ViewportSize / 2),
     smoothing = 200,
     pressed = "aiming",
+
+  
     hitbox_priority = {"head","torso","shoulder1","shoulder2","arm1","arm2","hip1","hip2","leg1","leg2"},
     hitbox_offset = Vector3.new(0,0,0)
 }
 
 local screen_middle = settings.screen_middle
+
+
 local circle = settings.circle
 circle.Visible = false
 circle.Radius = 120
@@ -26,61 +30,6 @@ circle.Thickness = 1
 circle.Color = Color3.new(1, 1, 1)
 circle.Position = screen_middle
 
-local local_player
-local current_ignore = {}
-
-local sharedRayParams = RaycastParams.new()
-sharedRayParams.FilterType = Enum.RaycastFilterType.Blacklist
-
-local function makeBlacklist()
-    local list = {}
-    if local_player and local_player.Character then
-        table.insert(list, local_player.Character)
-    end
-    for _, name in ipairs({"ViewModels", "Viewmodels", "viewmodels"}) do
-        local folder = workspace:FindFirstChild(name)
-        if folder then
-            table.insert(list, folder)
-        end
-    end
-    if camera then
-        table.insert(list, camera)
-    end
-    return list
-end
-
-local function refresh_ignore()
-    current_ignore = makeBlacklist()
-    sharedRayParams.FilterDescendantsInstances = current_ignore
-end
-
-refresh_ignore()
-
-local function is_part_visible(part, vm)
-    if not part or not part.Parent then return false end
-
-    if not camera or not camera.Parent then camera = workspace.CurrentCamera end
-    if not camera then return false end
-
-    local camPos = camera.CFrame.Position
-    local dir = part.Position - camPos
-    if dir.Magnitude <= 0 then return false end
-
-    sharedRayParams.FilterDescendantsInstances = current_ignore
-    local result = workspace:Raycast(camPos, dir, sharedRayParams)
-    if not result then
-        return true
-    end
-
-    local hit = result.Instance
-    if vm and hit and hit:IsDescendantOf(vm) then
-        return true
-    end
-    if hit == part then
-        return true
-    end
-    return false
-end
 
 local function get_useable()
     return (
@@ -94,6 +43,7 @@ local function get_useable()
     ) or false
 end
 
+
 local function find_closest()
     local PlayerAmt = players:GetPlayers()
     local ClosestPlayer, ClosestViewmodel, ClosestScreenPos, ClosestPart
@@ -103,6 +53,7 @@ local function find_closest()
 
     for _, pl in ipairs(PlayerAmt) do
         if pl == players.LocalPlayer then continue end
+
         local vm
         if viewmodels_folder then
             vm = viewmodels_folder:FindFirstChild(pl.Name) or viewmodels_folder:FindFirstChild("Viewmodels/" .. pl.Name)
@@ -112,16 +63,13 @@ local function find_closest()
         for _, partName in ipairs(settings.hitbox_priority) do
             local part = vm:FindFirstChild(partName)
             if not part then continue end
+
             local aimPos = part.Position + settings.hitbox_offset
             local point, onScreen = to_view_point(aimPos)
             if not onScreen then continue end
+
             local screenDist = (point - screen_mid).Magnitude
-
             if settings.circle and settings.circle.Visible and screenDist > settings.circle.Radius then
-                continue
-            end
-
-            if not is_part_visible(part, vm) then
                 continue
             end
 
@@ -134,49 +82,23 @@ local function find_closest()
             end
         end
     end
+
     return ClosestPlayer, ClosestViewmodel, ClosestScreenPos, ClosestPart
 end
 
 rawset(aimbot, "aimbot_settings", settings)
 
+-- Initialize hooks
 aimbot.init = function()
     user_input_service = get_service("UserInputService")
     run_service = get_service("RunService")
     players = get_service("Players")
-    local_player = players.LocalPlayer
-
-    refresh_ignore()
-
-    if local_player then
-        local_player.CharacterAdded:Connect(function()
-            task.wait(0.1)
-            refresh_ignore()
-        end)
-    end
-
-    for _, name in ipairs({"Viewmodels", "ViewModels", "viewmodels"}) do
-        local vmFolder = workspace:FindFirstChild(name)
-        if vmFolder then
-            vmFolder.ChildAdded:Connect(function()
-                refresh_ignore()
-            end)
-            vmFolder.ChildRemoved:Connect(function()
-                refresh_ignore()
-            end)
-        end
-    end
 
     on_esp_ran(function()
         local player, closest, screen_pos, aim_part = find_closest()
         if not (player and closest and aim_part) then return end
-        if user_input_service.MouseBehavior == Enum.MouseBehavior.Default
-            or not get_useable() or not settings.enabled or settings.silent then
-            start = 0
-            rot = Vector2.new()
-            return
-        end
 
-        if not is_part_visible(aim_part, closest) then
+        if user_input_service.MouseBehavior == Enum.MouseBehavior.Default or not get_useable() or not settings.enabled or settings.silent then
             start = 0
             rot = Vector2.new()
             return
@@ -184,20 +106,22 @@ aimbot.init = function()
 
         start += (run_service.RenderStepped:Wait() * 1000)
         local lerp = math.clamp(start / settings.smoothing, 0, 1)
-        local base_cframe = camera.CFrame:Lerp(
-            CFrame.lookAt(camera.CFrame.Position, aim_part.Position, Vector3.new(0,1,0)),
-            (1 - (1 - lerp) ^ 2)
-        )
+        local base_cframe = camera.CFrame:Lerp(CFrame.lookAt(camera.CFrame.Position, aim_part.Position, Vector3.new(0, 1, 0)), (1 - (1 - lerp) ^ 2))
         rot += (user_input_service:GetMouseDelta() * 0.0005)
         camera.CFrame = base_cframe * CFrame.Angles(0, -rot.X, 0) * CFrame.Angles(-rot.Y, 0, 0)
-        if lerp >= 1 then start = 0; rot = Vector2.new() end
+
+        if lerp >= 1 then
+            start = 0
+            rot = Vector2.new()
+            return
+        end
     end)
 
     local old_cframe_new = clonefunction(CFrame.new)
     hook_function(CFrame.new, function(...)
         if debug.info(3, 'n') == "send_shoot" and settings.enabled and settings.silent and get_useable() then
             local player, closest, screen_pos, aim_part = find_closest()
-            if player and closest and aim_part and is_part_visible(aim_part, closest) then
+            if player and closest and aim_part then
                 debug.setstack(3, 6, CFrame.lookAt(debug.getstack(3, 3).Position, aim_part.Position))
             end
         end
