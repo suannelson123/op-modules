@@ -1,44 +1,34 @@
-local weapon_modifications = {}
+local weapon_modifications = {};
 local settings = {
     recoil_x = 1,
     recoil_y = 1,
-    no_spread = true,
+    no_spread = false,
     fast_reload = false
-}
+};
 
-rawset(weapon_modifications, "weapon_modifications_settings", settings)
+rawset(weapon_modifications, "weapon_modifications_settings", settings);
 
 weapon_modifications.init = function()
 
-    
-    local old_nextnumber
-    old_nextnumber = hookmetamethod(Random.new(), "__index", newcclosure(function(self, key)
-        if key == "NextNumber" then
-            local old_func = rawget(self, key) or Random.new().NextNumber
-            return function(...)
-                if settings.no_spread then
-                    local caller = debug.info(3, "n")
-                    if caller and (caller:lower():find("shoot") or caller:lower():find("fire")) then
-                        return 0
-                    end
-                end
-                return old_func(...)
-            end
-        end
-        return old_nextnumber(self, key)
-    end))
+    local old_math_random = clonefunction(math.random);
+    hook_function(math.random, newcclosure(function(...)
+        if (debug.info(3, 'n') == "send_shoot" and settings.no_spread) then
+            debug.setstack(3, 13, 0);
+        end;
+        return old_math_random(...);
+    end));
 
-    local old_tweenInfo_new = clonefunction(TweenInfo.new)
+    local old_tweenInfo_new = clonefunction(TweenInfo.new);
     hook_function(TweenInfo.new, newcclosure(function(...)
         if (debug.info(3, 'n') == "recoil_function") then
-            debug.setstack(3, 5, (debug.getstack(3, 5) * settings.recoil_x))
-            debug.setstack(3, 6, (debug.getstack(3, 6) * settings.recoil_y))
+            debug.setstack(3, 5, (debug.getstack(3, 5) * settings.recoil_x));
+            debug.setstack(3, 6, (debug.getstack(3, 6) * settings.recoil_y));
         elseif (debug.info(4, 'n') == "reload_begin" and typeof(debug.getstack(4, 6)) == "number" and settings.fast_reload) then
-            debug.setstack(4, 6, (debug.getstack(4, 6) / 1.1))
-        end
-        return old_tweenInfo_new(...)
-    end))
+            debug.setstack(4, 6, (debug.getstack(4, 6) / 1.1));
+        end;
+        return old_tweenInfo_new(...);
+    end));
 
-end
+end;
 
-return weapon_modifications
+return weapon_modifications;
