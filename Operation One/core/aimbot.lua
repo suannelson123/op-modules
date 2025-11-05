@@ -15,7 +15,7 @@ local settings = {
     pressed = "aiming",
 
     visibility = true,
-    visibility_tolerance = 0.8,
+    visibility_tolerance = 1,
 
     hitbox_priority = {"head","torso","shoulder1","shoulder2","arm1","arm2","hip1","hip2","leg1","leg2"},
     hitbox_offset = Vector3.new(0,0,0)
@@ -77,7 +77,7 @@ local function is_visible(point, targetModel)
             return true
         end
 
-        if hit.Transparency >= settings.visibility_tolerance or not hit.CanCollide then
+        if hit.Transparency < settings.visibility_tolerance or not hit.CanCollide then
             currentOrigin = result.Position + (remainingDir.Unit * 0.05)
             remainingDir = direction - (currentOrigin - origin)
             attempts += 1
