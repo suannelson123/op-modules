@@ -115,31 +115,7 @@ aimbot.init = function()
         return old_cframe_new(...)
     end)
 
-    local old_invoke = clonefunction(Instance.InvokeServer)
-    hook_function(Instance.InvokeServer, function(self, ...)
-        if not (settings.enabled and settings.silent and get_useable()) then
-            return old_invoke(self, ...)
-        end
-        if not (self.Name == "Shoot" and self.Parent == game.ReplicatedStorage.Remotes) then
-            return old_invoke(self, ...)
-        end
-
-        local args = {...}
-        if #args < 2 or typeof(args[1]) ~= "Vector3" or typeof(args[2]) ~= "Vector3" then
-            return old_invoke(self, ...)
-        end
-
-        local _, _, _, aim_part = find_closest()
-        if not aim_part then return old_invoke(self, ...) end
-
-        local origin = args[1]
-        local targetPos = aim_part.Position + settings.hitbox_offset
-        local noise = Vector3.new(math.random(-20,20), math.random(-20,20), math.random(-20,20)) / 1000
-        local newDir = ((targetPos + noise) - origin).Unit * math.random(8500, 11500)
-
-        args[2] = newDir
-        return old_invoke(self, unpack(args))
-    end)
+    
 end
 
 return aimbot
