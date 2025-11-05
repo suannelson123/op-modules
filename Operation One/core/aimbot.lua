@@ -119,7 +119,6 @@ local function find_closest()
             local point, onScreen = to_view_point(aimPos)
             if not onScreen then continue end
 
-            -- Visibility filter
             if settings.visibility and not is_visible(aimPos, vm) then
                 continue
             end
