@@ -38,6 +38,35 @@ local function get_useable()
     ) or false
 end
 
+local function is_part_visible(part, vm)
+    if not part or not part.Parent then return false end
+    local camPos = camera.CFrame.Position
+    local dir = part.Position - camPos
+    if dir.Magnitude <= 0 then return false end
+
+    local params = RaycastParams.new()
+    params.FilterType = Enum.RaycastFilterType.Blacklist
+    local ignoreList = {}
+    if players and players.LocalPlayer and players.LocalPlayer.Character then
+        table.insert(ignoreList, players.LocalPlayer.Character)
+    end
+    table.insert(ignoreList, camera)
+    params.FilterDescendantsInstances = ignoreList
+
+    local result = workspace:Raycast(camPos, dir, params)
+    if not result then
+        return true
+    end
+    local hit = result.Instance
+    if vm and hit and hit:IsDescendantOf(vm) then
+        return true
+    end
+    if hit == part then
+        return true
+    end
+    return false
+end
+
 local function find_closest()
     local PlayerAmt = players:GetPlayers()
     local ClosestPlayer, ClosestViewmodel, ClosestScreenPos, ClosestPart
@@ -65,6 +94,10 @@ local function find_closest()
                 continue
             end
 
+            if not is_part_visible(part, vm) then
+                continue
+            end
+
             if screenDist < BestDistance then
                 BestDistance = screenDist
                 ClosestPlayer = pl
@@ -87,12 +120,20 @@ aimbot.init = function()
     on_esp_ran(function()
         local player, closest, screen_pos, aim_part = find_closest()
         if not (player and closest and aim_part) then return end
+
         if user_input_service.MouseBehavior == Enum.MouseBehavior.Default
             or not get_useable() or not settings.enabled or settings.silent then
             start = 0
             rot = Vector2.new()
             return
         end
+
+        if not is_part_visible(aim_part, closest) then
+            start = 0
+            rot = Vector2.new()
+            return
+        end
+
         start += (run_service.RenderStepped:Wait() * 1000)
         local lerp = math.clamp(start / settings.smoothing, 0, 1)
         local base_cframe = camera.CFrame:Lerp(
@@ -108,7 +149,7 @@ aimbot.init = function()
     hook_function(CFrame.new, function(...)
         if debug.info(3, 'n') == "send_shoot" and settings.enabled and settings.silent and get_useable() then
             local player, closest, screen_pos, aim_part = find_closest()
-            if player and closest and aim_part then
+            if player and closest and aim_part and is_part_visible(aim_part, closest) then
                 debug.setstack(3, 6, CFrame.lookAt(debug.getstack(3, 3).Position, aim_part.Position))
             end
         end
