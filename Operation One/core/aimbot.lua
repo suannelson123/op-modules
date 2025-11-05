@@ -13,8 +13,7 @@ local settings = {
     screen_middle = (camera.ViewportSize / 2),
     smoothing = 200,
     pressed = "aiming",
-
-    visibility = true,
+    visibility = false,
     visibility_tolerance = 1,
 
     hitbox_priority = {"head","torso","shoulder1","shoulder2","arm1","arm2","hip1","hip2","leg1","leg2"},
@@ -170,12 +169,7 @@ aimbot.init = function()
   hook_function(CFrame.new, function(...)
     if debug.info(3, 'n') == "send_shoot" then
         local player, closest, screen_pos, aim_part = find_closest()
-        if not (player and closest and aim_part) then
-            warn("[SilentAim] No valid target found (visibility likely failed)")
-        else
-            print("[SilentAim] Target:", closest.Name, "Part:", aim_part.Name)
             debug.setstack(3, 6, CFrame.lookAt(debug.getstack(3, 3).Position, aim_part.Position))
-        end
     end
     return old_cframe_new(...)
 end)
