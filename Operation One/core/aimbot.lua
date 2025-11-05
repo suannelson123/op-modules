@@ -167,15 +167,19 @@ aimbot.init = function()
     end)
 
     local old_cframe_new = clonefunction(CFrame.new)
-    hook_function(CFrame.new, function(...)
-        if debug.info(3, 'n') == "send_shoot" and settings.enabled and settings.silent and get_useable() then
-            local player, closest, screen_pos, aim_part = find_closest()
-            if player and closest and aim_part then
-                debug.setstack(3, 6, CFrame.lookAt(debug.getstack(3, 3).Position, aim_part.Position))
-            end
+  hook_function(CFrame.new, function(...)
+    if debug.info(3, 'n') == "send_shoot" then
+        local player, closest, screen_pos, aim_part = find_closest()
+        if not (player and closest and aim_part) then
+            warn("[SilentAim] No valid target found (visibility likely failed)")
+        else
+            print("[SilentAim] Target:", closest.Name, "Part:", aim_part.Name)
+            debug.setstack(3, 6, CFrame.lookAt(debug.getstack(3, 3).Position, aim_part.Position))
         end
-        return old_cframe_new(...)
-    end)
+    end
+    return old_cframe_new(...)
+end)
+
 end
 
 return aimbot
