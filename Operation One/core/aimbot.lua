@@ -26,6 +26,73 @@ circle.Thickness = 1
 circle.Color = Color3.new(1, 1, 1)
 circle.Position = screen_middle
 
+local local_player
+local local_local_ignore_names = {
+    "Character",
+    "Viewmodels",
+    "LocalPlayerFolder"
+}
+
+local function build_ignore_list()
+    local ignore = {}
+
+    if local_player and local_player.Character then
+        table.insert(ignore, local_player.Character)
+    end
+
+    if camera then
+        table.insert(ignore, camera)
+    end
+
+    local viewmodels_folder = workspace:FindFirstChild("Viewmodels")
+    if viewmodels_folder and local_player then
+        local my_vm = viewmodels_folder:FindFirstChild(local_player.Name)
+        if my_vm then table.insert(ignore, my_vm) end
+    end
+
+    for _, name in ipairs(local_local_ignore_names) do
+        local inst = workspace:FindFirstChild(name)
+        if inst then
+            local maybe_child = inst:FindFirstChild(local_player and local_player.Name or "")
+            if maybe_child then
+                table.insert(ignore, maybe_child)
+            else
+                table.insert(ignore, inst)
+            end
+        end
+    end
+
+    return ignore
+end
+
+local current_ignore = {}
+
+local function is_part_visible(part, vm)
+    if not part or not part.Parent then return false end
+
+    local camPos = camera.CFrame.Position
+    local dir = part.Position - camPos
+    if dir.Magnitude <= 0 then return false end
+
+    local params = RaycastParams.new()
+    params.FilterType = Enum.RaycastFilterType.Blacklist
+    params.FilterDescendantsInstances = current_ignore
+
+    local result = workspace:Raycast(camPos, dir, params)
+    if not result then
+        return true
+    end
+
+    local hit = result.Instance
+    if vm and hit and hit:IsDescendantOf(vm) then
+        return true
+    end
+    if hit == part then
+        return true
+    end
+    return false
+end
+
 local function get_useable()
     return (
         settings.pressed == "None" and true
@@ -36,35 +103,6 @@ local function get_useable()
             or user_input_service:IsMouseButtonPressed(Enum.UserInputType.MouseButton2)
         )
     ) or false
-end
-
-local function is_part_visible(part, vm)
-    if not part or not part.Parent then return false end
-    local camPos = camera.CFrame.Position
-    local dir = part.Position - camPos
-    if dir.Magnitude <= 0 then return false end
-
-    local params = RaycastParams.new()
-    params.FilterType = Enum.RaycastFilterType.Blacklist
-    local ignoreList = {}
-    if players and players.LocalPlayer and players.LocalPlayer.Character then
-        table.insert(ignoreList, players.LocalPlayer.Character)
-    end
-    table.insert(ignoreList, camera)
-    params.FilterDescendantsInstances = ignoreList
-
-    local result = workspace:Raycast(camPos, dir, params)
-    if not result then
-        return true
-    end
-    local hit = result.Instance
-    if vm and hit and hit:IsDescendantOf(vm) then
-        return true
-    end
-    if hit == part then
-        return true
-    end
-    return false
 end
 
 local function find_closest()
@@ -116,6 +154,22 @@ aimbot.init = function()
     user_input_service = get_service("UserInputService")
     run_service = get_service("RunService")
     players = get_service("Players")
+    local_player = players.LocalPlayer
+
+    current_ignore = build_ignore_list()
+
+    if local_player then
+        local_player.CharacterAdded:Connect(function()
+            current_ignore = build_ignore_list()
+        end)
+    end
+
+    local viewmodels_folder = workspace:FindFirstChild("Viewmodels")
+    if viewmodels_folder then
+        viewmodels_folder.ChildAdded:Connect(function()
+            current_ignore = build_ignore_list()
+        end)
+    end
 
     on_esp_ran(function()
         local player, closest, screen_pos, aim_part = find_closest()
@@ -155,8 +209,6 @@ aimbot.init = function()
         end
         return old_cframe_new(...)
     end)
-
-    
 end
 
 return aimbot
