@@ -137,14 +137,7 @@ aimbot_groupbox:AddToggle('aimbot_psilent', {
     end
 })
 
-aimbot_groupbox:AddToggle('aimbot_visibility', {
-    Text = "Visibility Check",
-    Default = true,
-    Tooltip = "Only target enemies visible on screen (not behind walls)",
-    Callback = function(value: boolean)
-        aimbot_settings.visibility_check = value
-    end
-})
+
 
 
 aimbot_groupbox:AddDropdown('aimbot_pressed', {
