@@ -13,11 +13,15 @@ local settings = {
     screen_middle = (camera.ViewportSize / 2),
     smoothing = 200,
     pressed = "aiming",
-    visibility = false,
-    visibility_tolerance = 1,
 
-    hitbox_priority = {"head","torso","shoulder1","shoulder2","arm1","arm2","hip1","hip2","leg1","leg2"},
-    hitbox_offset = Vector3.new(0,0,0)
+    visibility = false,              
+    visibility_tolerance = 1,      
+
+    hitbox_priority = {
+        "head", "torso", "shoulder1", "shoulder2",
+        "arm1", "arm2", "hip1", "hip2", "leg1", "leg2"
+    },
+    hitbox_offset = Vector3.new(0, 0, 0)
 }
 
 local screen_middle = settings.screen_middle
@@ -61,6 +65,7 @@ local function is_visible(point, targetModel)
     local remainingDir = direction.Unit * maxDistance
     local currentOrigin = origin
     local attempts = 0
+
     while attempts < 5 do
         local result = workspace:Raycast(currentOrigin, remainingDir, params)
         if not result then
@@ -76,7 +81,7 @@ local function is_visible(point, targetModel)
             return true
         end
 
-        if hit.Transparency < settings.visibility_tolerance or not hit.CanCollide then
+        if hit.Transparency >= settings.visibility_tolerance or not hit.CanCollide then
             currentOrigin = result.Position + (remainingDir.Unit * 0.05)
             remainingDir = direction - (currentOrigin - origin)
             attempts += 1
@@ -101,7 +106,8 @@ local function find_closest()
 
         local vm
         if viewmodels_folder then
-            vm = viewmodels_folder:FindFirstChild(pl.Name) or viewmodels_folder:FindFirstChild("Viewmodels/" .. pl.Name)
+            vm = viewmodels_folder:FindFirstChild(pl.Name)
+                or viewmodels_folder:FindFirstChild("Viewmodels/" .. pl.Name)
         end
         if not vm or not vm:FindFirstChild("EnemyHighlight") then continue end
 
@@ -113,6 +119,7 @@ local function find_closest()
             local point, onScreen = to_view_point(aimPos)
             if not onScreen then continue end
 
+            -- Visibility filter
             if settings.visibility and not is_visible(aimPos, vm) then
                 continue
             end
@@ -146,7 +153,10 @@ aimbot.init = function()
         local player, closest, screen_pos, aim_part = find_closest()
         if not (player and closest and aim_part) then return end
 
-        if user_input_service.MouseBehavior == Enum.MouseBehavior.Default or not get_useable() or not settings.enabled or settings.silent then
+        if user_input_service.MouseBehavior == Enum.MouseBehavior.Default
+            or not get_useable()
+            or not settings.enabled
+            or settings.silent then
             start = 0
             rot = Vector2.new()
             return
@@ -154,7 +164,10 @@ aimbot.init = function()
 
         start += (run_service.RenderStepped:Wait() * 1000)
         local lerp = math.clamp(start / settings.smoothing, 0, 1)
-        local base_cframe = camera.CFrame:Lerp(CFrame.lookAt(camera.CFrame.Position, aim_part.Position, Vector3.new(0, 1, 0)), (1 - (1 - lerp) ^ 2))
+        local base_cframe = camera.CFrame:Lerp(
+            CFrame.lookAt(camera.CFrame.Position, aim_part.Position, Vector3.new(0, 1, 0)),
+            (1 - (1 - lerp) ^ 2)
+        )
         rot += (user_input_service:GetMouseDelta() * 0.0005)
         camera.CFrame = base_cframe * CFrame.Angles(0, -rot.X, 0) * CFrame.Angles(-rot.Y, 0, 0)
 
@@ -165,16 +178,19 @@ aimbot.init = function()
         end
     end)
 
+    local old_cframe_new = clonefunction(CFrame.new)
     hook_function(CFrame.new, function(...)
-    if debug.info(3, 'n') == "send_shoot" and settings.enabled and settings.silent and get_useable() then
-        local player, closest, screen_pos, aim_part = find_closest()
-        if player and closest and aim_part then
-            debug.setstack(3, 6, CFrame.lookAt(debug.getstack(3, 3).Position, aim_part.Position))
+        if debug.info(3, 'n') == "send_shoot"
+            and settings.enabled
+            and settings.silent
+            and get_useable() then
+            local player, closest, screen_pos, aim_part = find_closest()
+            if player and closest and aim_part then
+                debug.setstack(3, 6, CFrame.lookAt(debug.getstack(3, 3).Position, aim_part.Position))
+            end
         end
-    end
-    return old_cframe_new(...)
-end)
-
+        return old_cframe_new(...)
+    end)
 end
 
 return aimbot
