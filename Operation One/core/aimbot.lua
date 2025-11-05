@@ -12,7 +12,7 @@ local settings = {
     circle = Drawing.new("Circle"),
     screen_middle = (camera.ViewportSize / 2),
     smoothing = 200,
-    pressed = "aiming",  
+    pressed = "aiming",
     hitbox_priority = {"head","torso","shoulder1","shoulder2","arm1","arm2","hip1","hip2","leg1","leg2"},
     hitbox_offset = Vector3.new(0,0,0)
 }
@@ -27,58 +27,47 @@ circle.Color = Color3.new(1, 1, 1)
 circle.Position = screen_middle
 
 local local_player
-local local_local_ignore_names = {
-    "Character",
-    "Viewmodels",
-    "LocalPlayerFolder"
-}
+local current_ignore = {}
 
-local function build_ignore_list()
-    local ignore = {}
+local sharedRayParams = RaycastParams.new()
+sharedRayParams.FilterType = Enum.RaycastFilterType.Blacklist
 
+local function makeBlacklist()
+    local list = {}
     if local_player and local_player.Character then
-        table.insert(ignore, local_player.Character)
+        table.insert(list, local_player.Character)
     end
-
-    if camera then
-        table.insert(ignore, camera)
-    end
-
-    local viewmodels_folder = workspace:FindFirstChild("Viewmodels")
-    if viewmodels_folder and local_player then
-        local my_vm = viewmodels_folder:FindFirstChild(local_player.Name)
-        if my_vm then table.insert(ignore, my_vm) end
-    end
-
-    for _, name in ipairs(local_local_ignore_names) do
-        local inst = workspace:FindFirstChild(name)
-        if inst then
-            local maybe_child = inst:FindFirstChild(local_player and local_player.Name or "")
-            if maybe_child then
-                table.insert(ignore, maybe_child)
-            else
-                table.insert(ignore, inst)
-            end
+    for _, name in ipairs({"ViewModels", "Viewmodels", "viewmodels"}) do
+        local folder = workspace:FindFirstChild(name)
+        if folder then
+            table.insert(list, folder)
         end
     end
-
-    return ignore
+    if camera then
+        table.insert(list, camera)
+    end
+    return list
 end
 
-local current_ignore = {}
+local function refresh_ignore()
+    current_ignore = makeBlacklist()
+    sharedRayParams.FilterDescendantsInstances = current_ignore
+end
+
+refresh_ignore()
 
 local function is_part_visible(part, vm)
     if not part or not part.Parent then return false end
+
+    if not camera or not camera.Parent then camera = workspace.CurrentCamera end
+    if not camera then return false end
 
     local camPos = camera.CFrame.Position
     local dir = part.Position - camPos
     if dir.Magnitude <= 0 then return false end
 
-    local params = RaycastParams.new()
-    params.FilterType = Enum.RaycastFilterType.Blacklist
-    params.FilterDescendantsInstances = current_ignore
-
-    local result = workspace:Raycast(camPos, dir, params)
+    sharedRayParams.FilterDescendantsInstances = current_ignore
+    local result = workspace:Raycast(camPos, dir, sharedRayParams)
     if not result then
         return true
     end
@@ -156,25 +145,31 @@ aimbot.init = function()
     players = get_service("Players")
     local_player = players.LocalPlayer
 
-    current_ignore = build_ignore_list()
+    refresh_ignore()
 
     if local_player then
         local_player.CharacterAdded:Connect(function()
-            current_ignore = build_ignore_list()
+            -- small delay to allow character to appear in workspace
+            task.wait(0.1)
+            refresh_ignore()
         end)
     end
 
-    local viewmodels_folder = workspace:FindFirstChild("Viewmodels")
-    if viewmodels_folder then
-        viewmodels_folder.ChildAdded:Connect(function()
-            current_ignore = build_ignore_list()
-        end)
+    for _, name in ipairs({"Viewmodels", "ViewModels", "viewmodels"}) do
+        local vmFolder = workspace:FindFirstChild(name)
+        if vmFolder then
+            vmFolder.ChildAdded:Connect(function()
+                refresh_ignore()
+            end)
+            vmFolder.ChildRemoved:Connect(function()
+                refresh_ignore()
+            end)
+        end
     end
 
     on_esp_ran(function()
         local player, closest, screen_pos, aim_part = find_closest()
         if not (player and closest and aim_part) then return end
-
         if user_input_service.MouseBehavior == Enum.MouseBehavior.Default
             or not get_useable() or not settings.enabled or settings.silent then
             start = 0
@@ -182,6 +177,7 @@ aimbot.init = function()
             return
         end
 
+        -- final defensive visibility check (uses the same blacklist)
         if not is_part_visible(aim_part, closest) then
             start = 0
             rot = Vector2.new()
