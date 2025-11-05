@@ -14,13 +14,14 @@ local settings = {
     smoothing = 200,
     pressed = "aiming",
 
-  
+    visibility = true,
+    visibility_tolerance = 0.8,
+
     hitbox_priority = {"head","torso","shoulder1","shoulder2","arm1","arm2","hip1","hip2","leg1","leg2"},
     hitbox_offset = Vector3.new(0,0,0)
 }
 
 local screen_middle = settings.screen_middle
-
 
 local circle = settings.circle
 circle.Visible = false
@@ -29,7 +30,6 @@ circle.Filled = false
 circle.Thickness = 1
 circle.Color = Color3.new(1, 1, 1)
 circle.Position = screen_middle
-
 
 local function get_useable()
     return (
@@ -43,6 +43,52 @@ local function get_useable()
     ) or false
 end
 
+local function is_visible(point, targetModel)
+    if not camera or not camera.CFrame then return false end
+
+    local origin = camera.CFrame.Position
+    local direction = (point - origin)
+    if direction.Magnitude <= 0 then return true end
+
+    local params = RaycastParams.new()
+    local filters = {}
+    if players and players.LocalPlayer and players.LocalPlayer.Character then
+        table.insert(filters, players.LocalPlayer.Character)
+    end
+    params.FilterType = Enum.RaycastFilterType.Blacklist
+    params.FilterDescendantsInstances = filters
+
+    local maxDistance = direction.Magnitude
+    local remainingDir = direction.Unit * maxDistance
+    local currentOrigin = origin
+    local attempts = 0
+    while attempts < 5 do
+        local result = workspace:Raycast(currentOrigin, remainingDir, params)
+        if not result then
+            return true
+        end
+
+        local hit = result.Instance
+        if not hit then
+            return true
+        end
+
+        if targetModel and (hit == targetModel or hit:IsDescendantOf(targetModel)) then
+            return true
+        end
+
+        if hit.Transparency >= settings.visibility_tolerance or not hit.CanCollide then
+            currentOrigin = result.Position + (remainingDir.Unit * 0.05)
+            remainingDir = direction - (currentOrigin - origin)
+            attempts += 1
+            continue
+        end
+
+        return false
+    end
+
+    return false
+end
 
 local function find_closest()
     local PlayerAmt = players:GetPlayers()
@@ -68,6 +114,10 @@ local function find_closest()
             local point, onScreen = to_view_point(aimPos)
             if not onScreen then continue end
 
+            if settings.visibility and not is_visible(aimPos, vm) then
+                continue
+            end
+
             local screenDist = (point - screen_mid).Magnitude
             if settings.circle and settings.circle.Visible and screenDist > settings.circle.Radius then
                 continue
@@ -88,7 +138,6 @@ end
 
 rawset(aimbot, "aimbot_settings", settings)
 
--- Initialize hooks
 aimbot.init = function()
     user_input_service = get_service("UserInputService")
     run_service = get_service("RunService")
