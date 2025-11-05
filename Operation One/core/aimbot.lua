@@ -149,7 +149,6 @@ aimbot.init = function()
 
     if local_player then
         local_player.CharacterAdded:Connect(function()
-            -- small delay to allow character to appear in workspace
             task.wait(0.1)
             refresh_ignore()
         end)
@@ -177,7 +176,6 @@ aimbot.init = function()
             return
         end
 
-        -- final defensive visibility check (uses the same blacklist)
         if not is_part_visible(aim_part, closest) then
             start = 0
             rot = Vector2.new()
