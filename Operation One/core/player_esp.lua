@@ -19,15 +19,15 @@ local settings = {
 }
 
 
-
-
 rawset(player_esp, "set_player_esp", newcclosure(function(character: Model)
     task.wait(0.5)
     if not (character:IsA("Model") and character:FindFirstChild("EnemyHighlight")) or has_esp[character] then return end
 
     local name = character.Name:gsub("Viewmodels/", "")
-    local humanoid = players[name].Character:FindFirstChildOfClass("Humanoid")
+    local humanoid = players[name] and players[name].Character and players[name].Character:FindFirstChildOfClass("Humanoid")
     local torso = character:FindFirstChild("torso")
+
+    if not humanoid or not torso then return end
 
     local c1, c2
     has_esp[character] = {
@@ -59,15 +59,15 @@ rawset(player_esp, "set_player_esp", newcclosure(function(character: Model)
     skeleton.ZIndex = 5
 
     c1 = run_service.RenderStepped:Connect(function()
-        local point, on = to_view_point(torso.CFrame.Position)
+        local point, on = camera:WorldToViewportPoint(torso.Position)
         if on then
             for _, v in next, esp_ran do
                 v(has_esp[character], point)
             end
 
             local cf_mid, size = character:GetBoundingBox()
-            local bottom_right = to_view_point((CFrame.new(cf_mid.Position, camera.CFrame.Position) * CFrame.new(-size.X / 2, -size.Y / 2, 0)).Position)
-            local bottom_left = to_view_point((CFrame.new(cf_mid.Position, camera.CFrame.Position) * CFrame.new(size.X / 2, -size.Y / 2, 0)).Position)
+            local bottom_right = camera:WorldToViewportPoint((cf_mid.Position + Vector3.new(-size.X/2, -size.Y/2, 0)))
+            local bottom_left = camera:WorldToViewportPoint((cf_mid.Position + Vector3.new(size.X/2, -size.Y/2, 0)))
             local head_offset = (character.head.CFrame * -Vector3.new(0, (character.head.Size.Y / 2), 0))
 
             if settings.health_bar then
@@ -109,8 +109,8 @@ rawset(player_esp, "set_player_esp", newcclosure(function(character: Model)
         if parent ~= nil then return end
         c1:Disconnect()
         has_esp[character] = nil
-        health_bar_inner:Destroy()
-        health_bar_outer:Destroy()
+        health_bar_inner:Remove()
+        health_bar_outer:Remove()
         skeleton:Destroy()
         c2:Disconnect()
     end)
@@ -120,17 +120,25 @@ end))
 local function add_object_esp(obj: Instance, color: Color3)
     if object_esp[obj] then return end
 
+    local box_outline = Drawing.new("Square")
+    box_outline.Thickness = 3
+    box_outline.Color = Color3.new(0, 0, 0)
+    box_outline.Filled = false
+    box_outline.Visible = false
+    box_outline.ZIndex = 4
+
     local box = Drawing.new("Square")
     box.Thickness = 1
     box.Color = color
     box.Filled = false
-    box.Visible = true
+    box.Visible = false
     box.ZIndex = 5
 
     local conn
     conn = run_service.RenderStepped:Connect(function()
         if not obj or not obj:IsDescendantOf(workspace) then
             box:Remove()
+            box_outline:Remove()
             object_esp[obj] = nil
             conn:Disconnect()
             return
@@ -165,6 +173,7 @@ local function add_object_esp(obj: Instance, color: Color3)
 
         if not visible then
             box.Visible = false
+            box_outline.Visible = false
             return
         end
 
@@ -176,32 +185,39 @@ local function add_object_esp(obj: Instance, color: Color3)
 
         local width = maxX - minX
         local height = maxY - minY
+        local pos = Vector2.new(minX, minY)
 
+        box.Position = pos
         box.Size = Vector2.new(width, height)
-        box.Position = Vector2.new(minX, minY)
         box.Visible = true
+
+        box_outline.Position = pos
+        box_outline.Size = Vector2.new(width, height)
+        box_outline.Visible = true
     end)
 
-    object_esp[obj] = { box = box, conn = conn }
+    object_esp[obj] = {
+        box = box,
+        outline = box_outline,
+        conn = conn
+    }
 end
-
-
 
 
 local function track_objects()
     for _, obj in ipairs(workspace:GetChildren()) do
         if settings.show_claymores and obj.Name == "Claymore" then
-            add_object_esp(obj, Color3.fromRGB(255, 0, 0))
+            add_object_esp(obj, settings.claymore_color)
         elseif settings.show_drones and obj.Name == "Drone" then
-            add_object_esp(obj, Color3.fromRGB(0, 255, 255))
+            add_object_esp(obj, settings.drone_color)
         end
     end
 
     workspace.ChildAdded:Connect(function(obj)
         if settings.show_claymores and obj.Name == "Claymore" then
-            add_object_esp(obj, Color3.fromRGB(255, 0, 0))
+            add_object_esp(obj, settings.claymore_color)
         elseif settings.show_drones and obj.Name == "Drone" then
-            add_object_esp(obj, Color3.fromRGB(0, 255, 255))
+            add_object_esp(obj, settings.drone_color)
         end
     end)
 end
