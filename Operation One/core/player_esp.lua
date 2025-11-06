@@ -18,7 +18,6 @@ local settings = {
     drone_color = Color3.fromRGB(0, 255, 255),
 }
 
-
 rawset(player_esp, "set_player_esp", newcclosure(function(character: Model)
     task.wait(0.5)
     if not (character:IsA("Model") and character:FindFirstChild("EnemyHighlight")) or has_esp[character] then return end
@@ -116,7 +115,6 @@ rawset(player_esp, "set_player_esp", newcclosure(function(character: Model)
     end)
 end))
 
-
 local function add_object_esp(obj: Instance, color: Color3)
     if object_esp[obj] then return end
 
@@ -147,31 +145,12 @@ local function add_object_esp(obj: Instance, color: Color3)
         local cf, size = obj:GetBoundingBox()
         local corners = {
             cf * Vector3.new(-size.X/2, -size.Y/2, -size.Z/2),
-            cf * Vector3.new(-size.X/2, -size.Y/2,  size.Z/2),
-            cf * Vector3.new(-size.X/2,  size.Y/2, -size.Z/2),
-            cf * Vector3.new(-size.X/2,  size.Y/2,  size.Z/2),
-            cf * Vector3.new( size.X/2, -size.Y/2, -size.Z/2),
-            cf * Vector3.new( size.X/2, -size.Y/2,  size.Z/2),
-            cf * Vector3.new( size.X/2,  size.Y/2, -size.Z/2),
-            cf * Vector3.new( size.X/2,  size.Y/2,  size.Z/2),
+            cf * Vector3.new(size.X/2, size.Y/2, size.Z/2)
         }
 
-        local minX, minY = math.huge, math.huge
-        local maxX, maxY = -math.huge, -math.huge
-        local visible = false
-
-        for _, corner in ipairs(corners) do
-            local screenPos, onScreen = camera:WorldToViewportPoint(corner)
-            if onScreen then
-                visible = true
-                minX = math.min(minX, screenPos.X)
-                minY = math.min(minY, screenPos.Y)
-                maxX = math.max(maxX, screenPos.X)
-                maxY = math.max(maxY, screenPos.Y)
-            end
-        end
-
-        if not visible then
+        local screenPos1, onScreen1 = camera:WorldToViewportPoint(corners[1])
+        local screenPos2, onScreen2 = camera:WorldToViewportPoint(corners[2])
+        if not (onScreen1 or onScreen2) then
             box.Visible = false
             box_outline.Visible = false
             return
@@ -183,16 +162,17 @@ local function add_object_esp(obj: Instance, color: Color3)
             box.Color = settings.drone_color
         end
 
-        local width = maxX - minX
-        local height = maxY - minY
-        local pos = Vector2.new(minX, minY)
+        local minX = math.min(screenPos1.X, screenPos2.X)
+        local minY = math.min(screenPos1.Y, screenPos2.Y)
+        local width = math.abs(screenPos2.X - screenPos1.X)
+        local height = math.abs(screenPos2.Y - screenPos1.Y)
 
-        box.Position = pos
+        box.Position = Vector2.new(minX, minY)
         box.Size = Vector2.new(width, height)
         box.Visible = true
 
-        box_outline.Position = pos
-        box_outline.Size = Vector2.new(width, height)
+        box_outline.Position = box.Position
+        box_outline.Size = box.Size
         box_outline.Visible = true
     end)
 
@@ -202,7 +182,6 @@ local function add_object_esp(obj: Instance, color: Color3)
         conn = conn
     }
 end
-
 
 local function track_objects()
     for _, obj in ipairs(workspace:GetChildren()) do
@@ -221,7 +200,6 @@ local function track_objects()
         end
     end)
 end
-
 
 rawset(player_esp, "on_esp_ran", newcclosure(function(func)
     table.insert(esp_ran, func)
