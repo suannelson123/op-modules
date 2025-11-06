@@ -81,12 +81,13 @@ local function is_visible(point, targetModel)
             return true
         end
 
-        if hit.Transparency >= settings.visibility_tolerance or not hit.CanCollide then
-            currentOrigin = result.Position + (remainingDir.Unit * 0.05)
-            remainingDir = direction - (currentOrigin - origin)
-            attempts += 1
-            continue
+        if hit.Transparency > settings.visibility_tolerance or not hit.CanCollide then
+        currentOrigin = result.Position + (remainingDir.Unit * 0.05)
+        remainingDir = direction - (currentOrigin - origin)
+        attempts += 1
+        continue
         end
+
 
         return false
     end
