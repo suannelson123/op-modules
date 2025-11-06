@@ -28,12 +28,7 @@ rawset(player_esp, "set_player_esp", newcclosure(function(character: Model)
 
     if not humanoid or not torso then return end
 
-    local c1, c2
-    has_esp[character] = {
-        name = name,
-        humanoid = humanoid,
-        self = character
-    }
+    has_esp[character] = { name = name, humanoid = humanoid, self = character }
 
     local health_bar_inner = Drawing.new("Square")
     health_bar_inner.Visible = false
@@ -57,6 +52,7 @@ rawset(player_esp, "set_player_esp", newcclosure(function(character: Model)
     skeleton.Thickness = 1
     skeleton.ZIndex = 5
 
+    local c1, c2
     c1 = run_service.RenderStepped:Connect(function()
         local point, on = camera:WorldToViewportPoint(torso.Position)
         if on then
@@ -118,13 +114,6 @@ end))
 local function add_object_esp(obj: Instance, color: Color3)
     if object_esp[obj] then return end
 
-    local box_outline = Drawing.new("Square")
-    box_outline.Thickness = 3
-    box_outline.Color = Color3.new(0, 0, 0)
-    box_outline.Filled = false
-    box_outline.Visible = false
-    box_outline.ZIndex = 4
-
     local box = Drawing.new("Square")
     box.Thickness = 1
     box.Color = color
@@ -136,23 +125,46 @@ local function add_object_esp(obj: Instance, color: Color3)
     conn = run_service.RenderStepped:Connect(function()
         if not obj or not obj:IsDescendantOf(workspace) then
             box:Remove()
-            box_outline:Remove()
             object_esp[obj] = nil
             conn:Disconnect()
+            return
+        end
+
+        if (obj.Name == "Claymore" and not settings.show_claymores)
+        or (obj.Name == "Drone" and not settings.show_drones) then
+            box.Visible = false
             return
         end
 
         local cf, size = obj:GetBoundingBox()
         local corners = {
             cf * Vector3.new(-size.X/2, -size.Y/2, -size.Z/2),
-            cf * Vector3.new(size.X/2, size.Y/2, size.Z/2)
+            cf * Vector3.new(-size.X/2, -size.Y/2,  size.Z/2),
+            cf * Vector3.new(-size.X/2,  size.Y/2, -size.Z/2),
+            cf * Vector3.new(-size.X/2,  size.Y/2,  size.Z/2),
+            cf * Vector3.new( size.X/2, -size.Y/2, -size.Z/2),
+            cf * Vector3.new( size.X/2, -size.Y/2,  size.Z/2),
+            cf * Vector3.new( size.X/2,  size.Y/2, -size.Z/2),
+            cf * Vector3.new( size.X/2,  size.Y/2,  size.Z/2),
         }
 
-        local screenPos1, onScreen1 = camera:WorldToViewportPoint(corners[1])
-        local screenPos2, onScreen2 = camera:WorldToViewportPoint(corners[2])
-        if not (onScreen1 or onScreen2) then
+        local minX, minY = math.huge, math.huge
+        local maxX, maxY = -math.huge, -math.huge
+        local visible = false
+
+        for _, corner in ipairs(corners) do
+            local screenPos, onScreen = camera:WorldToViewportPoint(corner)
+            if onScreen then
+                visible = true
+                minX = math.min(minX, screenPos.X)
+                minY = math.min(minY, screenPos.Y)
+                maxX = math.max(maxX, screenPos.X)
+                maxY = math.max(maxY, screenPos.Y)
+            end
+        end
+
+        if not visible then
             box.Visible = false
-            box_outline.Visible = false
             return
         end
 
@@ -162,41 +174,26 @@ local function add_object_esp(obj: Instance, color: Color3)
             box.Color = settings.drone_color
         end
 
-        local minX = math.min(screenPos1.X, screenPos2.X)
-        local minY = math.min(screenPos1.Y, screenPos2.Y)
-        local width = math.abs(screenPos2.X - screenPos1.X)
-        local height = math.abs(screenPos2.Y - screenPos1.Y)
-
         box.Position = Vector2.new(minX, minY)
-        box.Size = Vector2.new(width, height)
+        box.Size = Vector2.new(maxX - minX, maxY - minY)
         box.Visible = true
-
-        box_outline.Position = box.Position
-        box_outline.Size = box.Size
-        box_outline.Visible = true
     end)
 
-    object_esp[obj] = {
-        box = box,
-        outline = box_outline,
-        conn = conn
-    }
+    object_esp[obj] = { box = box, conn = conn }
 end
 
 local function track_objects()
     for _, obj in ipairs(workspace:GetChildren()) do
-        if settings.show_claymores and obj.Name == "Claymore" then
-            add_object_esp(obj, settings.claymore_color)
-        elseif settings.show_drones and obj.Name == "Drone" then
-            add_object_esp(obj, settings.drone_color)
+        if (obj.Name == "Claymore" and settings.show_claymores)
+        or (obj.Name == "Drone" and settings.show_drones) then
+            add_object_esp(obj, (obj.Name == "Claymore") and settings.claymore_color or settings.drone_color)
         end
     end
 
     workspace.ChildAdded:Connect(function(obj)
-        if settings.show_claymores and obj.Name == "Claymore" then
-            add_object_esp(obj, settings.claymore_color)
-        elseif settings.show_drones and obj.Name == "Drone" then
-            add_object_esp(obj, settings.drone_color)
+        if (obj.Name == "Claymore" and settings.show_claymores)
+        or (obj.Name == "Drone" and settings.show_drones) then
+            add_object_esp(obj, (obj.Name == "Claymore") and settings.claymore_color or settings.drone_color)
         end
     end)
 end
