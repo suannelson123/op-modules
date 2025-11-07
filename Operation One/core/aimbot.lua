@@ -14,8 +14,8 @@ local settings = {
     smoothing = 200,
     pressed = "aiming",
 
-    visibility = false,              
-    visibility_tolerance = 0,      
+    visibility = false,             
+    visibility_tolerance = 0,       
 
     hitbox_priority = {
         "head", "torso", "shoulder1", "shoulder2",
@@ -27,12 +27,40 @@ local settings = {
 local screen_middle = settings.screen_middle
 
 local circle = settings.circle
-circle.Visible = false
-circle.Radius = 120
-circle.Filled = false
-circle.Thickness = 1
-circle.Color = Color3.new(1, 1, 1)
-circle.Position = screen_middle
+pcall(function()
+    circle.Visible = false
+    circle.Radius = 120
+    circle.Filled = false
+    circle.Thickness = 1
+    circle.Color = Color3.new(1, 1, 1)
+    circle.Position = screen_middle
+end)
+
+local aim_indicator = nil
+pcall(function()
+    aim_indicator = Drawing.new("Circle")
+    aim_indicator.Visible = false
+    aim_indicator.Radius = 5
+    aim_indicator.Filled = true
+    aim_indicator.Thickness = 1
+    aim_indicator.NumSides = 16
+    aim_indicator.Transparency = 1
+    aim_indicator.Color = Color3.fromRGB(0, 255, 0) -- green
+end)
+
+local function hideAimIndicator()
+    if not aim_indicator then return end
+    pcall(function() aim_indicator.Visible = false end)
+end
+
+local function showAimIndicator(posVec2)
+    if not aim_indicator then return end
+    pcall(function()
+        aim_indicator.Position = posVec2
+        aim_indicator.Color = Color3.fromRGB(0, 255, 0)
+        aim_indicator.Visible = true
+    end)
+end
 
 local function get_useable()
     return (
@@ -82,14 +110,12 @@ local function is_visible(point, targetModel)
         end
 
         if hit.Transparency > settings.visibility_tolerance or not hit.CanCollide then
-        currentOrigin = result.Position + (remainingDir.Unit * 0.05)
-        remainingDir = direction - (currentOrigin - origin)
-        attempts += 1
-        continue
+            currentOrigin = result.Position + (remainingDir.Unit * 0.05)
+            remainingDir = direction - (currentOrigin - origin)
+            attempts = attempts + 1
+        else
+            return false 
         end
-
-
-        return false
     end
 
     return false
@@ -101,6 +127,9 @@ local function find_closest()
     local BestDistance = math.huge
     local screen_mid = settings.screen_middle or screen_middle
     local viewmodels_folder = workspace:FindFirstChild("Viewmodels")
+
+
+    hideAimIndicator()
 
     for _, pl in ipairs(PlayerAmt) do
         if pl == players.LocalPlayer then continue end
@@ -120,7 +149,15 @@ local function find_closest()
             local point, onScreen = to_view_point(aimPos)
             if not onScreen then continue end
 
-            if settings.visibility and not is_visible(aimPos, vm) then
+            local visibleCheck = is_visible(aimPos, vm)
+
+            if visibleCheck then
+                if point and point.X and point.Y then
+                    showAimIndicator(point)
+                end
+            end
+
+            if settings.visibility and not visibleCheck then
                 continue
             end
 
@@ -139,6 +176,10 @@ local function find_closest()
         end
     end
 
+    if not ClosestPlayer then
+        hideAimIndicator()
+    end
+
     return ClosestPlayer, ClosestViewmodel, ClosestScreenPos, ClosestPart
 end
 
@@ -151,7 +192,10 @@ aimbot.init = function()
 
     on_esp_ran(function()
         local player, closest, screen_pos, aim_part = find_closest()
-        if not (player and closest and aim_part) then return end
+        if not (player and closest and aim_part) then
+            hideAimIndicator()
+            return
+        end
 
         if user_input_service.MouseBehavior == Enum.MouseBehavior.Default
             or not get_useable()
@@ -162,13 +206,13 @@ aimbot.init = function()
             return
         end
 
-        start += (run_service.RenderStepped:Wait() * 1000)
+        start = start + (run_service.RenderStepped:Wait() * 1000)
         local lerp = math.clamp(start / settings.smoothing, 0, 1)
         local base_cframe = camera.CFrame:Lerp(
             CFrame.lookAt(camera.CFrame.Position, aim_part.Position, Vector3.new(0, 1, 0)),
             (1 - (1 - lerp) ^ 2)
         )
-        rot += (user_input_service:GetMouseDelta() * 0.0005)
+        rot = rot + (user_input_service:GetMouseDelta() * 0.0005)
         camera.CFrame = base_cframe * CFrame.Angles(0, -rot.X, 0) * CFrame.Angles(-rot.Y, 0, 0)
 
         if lerp >= 1 then
@@ -186,7 +230,15 @@ aimbot.init = function()
             and get_useable() then
             local player, closest, screen_pos, aim_part = find_closest()
             if player and closest and aim_part then
+                local vis = is_visible(aim_part.Position, closest)
+                if vis and screen_pos then
+                    pcall(function() showAimIndicator(screen_pos) end)
+                else
+                    hideAimIndicator()
+                end
                 debug.setstack(3, 6, CFrame.lookAt(debug.getstack(3, 3).Position, aim_part.Position))
+            else
+                hideAimIndicator()
             end
         end
         return old_cframe_new(...)
