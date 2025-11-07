@@ -17,7 +17,7 @@ local settings = {
     visibility = false,             
     visibility_tolerance = 0,       
 
-   hitbox_priority = {
+     hitbox_priority = {
        "leg2", "leg1", "hip2", "hip1", "shoulder2", "shoulder1", "torso", "head"
     },
     hitbox_offset = Vector3.new(0, 0, 0)
@@ -44,7 +44,7 @@ pcall(function()
     aim_indicator.Thickness = 1
     aim_indicator.NumSides = 16
     aim_indicator.Transparency = 1
-    aim_indicator.Color = Color3.fromRGB(0, 255, 0) -- green
+    aim_indicator.Color = Color3.fromRGB(0, 255, 0) 
 end)
 
 local function hideAimIndicator()
@@ -108,12 +108,12 @@ local function is_visible(point, targetModel)
             return true
         end
 
-        if hit.Transparency >= settings.visibility_tolerance or not hit.CanCollide then
+        if hit.Transparency > settings.visibility_tolerance or not hit.CanCollide then
             currentOrigin = result.Position + (remainingDir.Unit * 0.05)
             remainingDir = direction - (currentOrigin - origin)
             attempts = attempts + 1
         else
-            return false 
+            return false
         end
     end
 
@@ -126,7 +126,6 @@ local function find_closest()
     local BestDistance = math.huge
     local screen_mid = settings.screen_middle or screen_middle
     local viewmodels_folder = workspace:FindFirstChild("Viewmodels")
-
 
     hideAimIndicator()
 
@@ -151,6 +150,7 @@ local function find_closest()
             local visibleCheck = is_visible(aimPos, vm)
 
             if visibleCheck then
+                -- point is screen position returned by to_view_point
                 if point and point.X and point.Y then
                     showAimIndicator(point)
                 end
