@@ -18,8 +18,7 @@ local settings = {
     visibility_tolerance = 0.8,       
 
     hitbox_priority = {
-        "head", "torso", "shoulder1", "shoulder2",
-        "arm1", "arm2", "hip1", "hip2", "leg1", "leg2"
+        "head", "torso", "shoulder1", "shoulder2", "hip1", "hip2", "leg1", "leg2"
     },
     hitbox_offset = Vector3.new(0, 0, 0)
 }
