@@ -244,4 +244,4 @@ aimbot.init = function()
     end)
 end
 
-return aimbots
+return aimbot
