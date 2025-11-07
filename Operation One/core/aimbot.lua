@@ -14,12 +14,11 @@ local settings = {
     smoothing = 200,
     pressed = "aiming",
 
-    visibility = false,            
-    visibility_tolerance = 0.8,      
+    visibility = false,             
+    visibility_tolerance = 0,       
 
-    hitbox_priority = {
-        "head", "torso", "shoulder1", "shoulder2",
-        "arm1", "arm2", "hip1", "hip2", "leg1", "leg2"
+   hitbox_priority = {
+       "leg2", "leg1", "hip2", "hip1", "shoulder2", "shoulder1", "torso", "head"
     },
     hitbox_offset = Vector3.new(0, 0, 0)
 }
@@ -89,22 +88,33 @@ local function is_visible(point, targetModel)
     params.FilterType = Enum.RaycastFilterType.Blacklist
     params.FilterDescendantsInstances = filters
 
-    local result = workspace:Raycast(origin, direction, params)
-    if not result then
-        return true
-    end
+    local maxDistance = direction.Magnitude
+    local remainingDir = direction.Unit * maxDistance
+    local currentOrigin = origin
+    local attempts = 0
 
-    local hit = result.Instance
-    if not hit then return true end
+    while attempts < 5 do
+        local result = workspace:Raycast(currentOrigin, remainingDir, params)
+        if not result then
+            return true
+        end
 
-  
-    if targetModel and (hit == targetModel or hit:IsDescendantOf(targetModel)) then
-        return true
-    end
+        local hit = result.Instance
+        if not hit then
+            return true
+        end
 
-    local isTransparentEnough = (hit.Transparency >= settings.visibility_tolerance)
-    if isTransparentEnough or not hit.CanCollide then
-        return true
+        if targetModel and (hit == targetModel or hit:IsDescendantOf(targetModel)) then
+            return true
+        end
+
+        if hit.Transparency >= settings.visibility_tolerance or not hit.CanCollide then
+            currentOrigin = result.Position + (remainingDir.Unit * 0.05)
+            remainingDir = direction - (currentOrigin - origin)
+            attempts = attempts + 1
+        else
+            return false 
+        end
     end
 
     return false
@@ -116,6 +126,7 @@ local function find_closest()
     local BestDistance = math.huge
     local screen_mid = settings.screen_middle or screen_middle
     local viewmodels_folder = workspace:FindFirstChild("Viewmodels")
+
 
     hideAimIndicator()
 
@@ -139,8 +150,10 @@ local function find_closest()
 
             local visibleCheck = is_visible(aimPos, vm)
 
-            if visibleCheck and point and point.X and point.Y then
-                showAimIndicator(point)
+            if visibleCheck then
+                if point and point.X and point.Y then
+                    showAimIndicator(point)
+                end
             end
 
             if settings.visibility and not visibleCheck then
@@ -178,12 +191,9 @@ aimbot.init = function()
 
     on_esp_ran(function()
         local player, closest, screen_pos, aim_part = find_closest()
-        if not (player and closest and aim_part) then return end
-
-        if is_visible(aim_part.Position, closest) and screen_pos then
-            showAimIndicator(screen_pos)
-        else
+        if not (player and closest and aim_part) then
             hideAimIndicator()
+            return
         end
 
         if user_input_service.MouseBehavior == Enum.MouseBehavior.Default
@@ -195,13 +205,13 @@ aimbot.init = function()
             return
         end
 
-        start += (run_service.RenderStepped:Wait() * 1000)
+        start = start + (run_service.RenderStepped:Wait() * 1000)
         local lerp = math.clamp(start / settings.smoothing, 0, 1)
         local base_cframe = camera.CFrame:Lerp(
             CFrame.lookAt(camera.CFrame.Position, aim_part.Position, Vector3.new(0, 1, 0)),
             (1 - (1 - lerp) ^ 2)
         )
-        rot += (user_input_service:GetMouseDelta() * 0.0005)
+        rot = rot + (user_input_service:GetMouseDelta() * 0.0005)
         camera.CFrame = base_cframe * CFrame.Angles(0, -rot.X, 0) * CFrame.Angles(-rot.Y, 0, 0)
 
         if lerp >= 1 then
@@ -211,7 +221,6 @@ aimbot.init = function()
         end
     end)
 
-    -- save original CFrame.new so we can call it
     local old_cframe_new = clonefunction(CFrame.new)
     hook_function(CFrame.new, function(...)
         if debug.info(3, 'n') == "send_shoot"
@@ -220,7 +229,8 @@ aimbot.init = function()
             and get_useable() then
             local player, closest, screen_pos, aim_part = find_closest()
             if player and closest and aim_part then
-                if is_visible(aim_part.Position, closest) and screen_pos then
+                local vis = is_visible(aim_part.Position, closest)
+                if vis and screen_pos then
                     pcall(function() showAimIndicator(screen_pos) end)
                 else
                     hideAimIndicator()
@@ -234,4 +244,4 @@ aimbot.init = function()
     end)
 end
 
-return aimbot
+return aimbots
