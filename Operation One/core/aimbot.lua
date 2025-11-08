@@ -90,30 +90,32 @@ local function dist2(a, b)
     return dx * dx + dy * dy + dz * dz
 end
 
-local function is_visible(point, targetModel)
-    if not (camera and camera.CFrame and typeof(point) == "Vector3" and targetModel) then return false end
+local function is_visible(point, targetModel, force)
+    if not camera or not camera.CFrame then return false end
+    if not players then return false end
+    if not point then return false end
+    if not targetModel then return false end
 
     local origin = camera.CFrame.Position
-    if not origin then return false end
-
     local toTarget = point - origin
-    if not toTarget then return false end
-
     local dist = toTarget.Magnitude
-    if not dist or dist <= 0 then return true end
-    if dist > VISIBILITY_DISTANCE_LIMIT then return false end
+    if dist <= 0 then return true end
+
+    if dist > VISIBILITY_DISTANCE_LIMIT then
+        return false
+    end
 
     local now = tick()
     local key = targetModel
-    local cached = last_visibility_check[key]
-    if type(cached) == "table" and cached.time and (now - cached.time) < VISIBILITY_CHECK_COOLDOWN then
-        return cached.result
+    local lastEntry = last_visibility_check[key]
+    if (not force) and lastEntry and (now - lastEntry.time) < VISIBILITY_CHECK_COOLDOWN then
+        return lastEntry.result
     end
 
     local params = raycast_params_cache
     local filters = params.FilterDescendantsInstances
     for i = #filters, 1, -1 do filters[i] = nil end
-    if players and players.LocalPlayer and players.LocalPlayer.Character then
+    if players.LocalPlayer and players.LocalPlayer.Character then
         filters[1] = players.LocalPlayer.Character
     end
 
@@ -141,7 +143,8 @@ local function is_visible(point, targetModel)
 
         if hit:IsA("BasePart") then
             local transparentEnough = (hit.Transparency >= settings.visibility_tolerance)
-            if transparentEnough or not hit.CanCollide then
+            local canCollide = hit.CanCollide
+            if transparentEnough or (canCollide == false) then
                 local unit = remainingDir.Unit
                 currentOrigin = result.Position + unit * VISIBILITY_ADVANCE
                 remainingDir = point - currentOrigin
@@ -149,7 +152,7 @@ local function is_visible(point, targetModel)
                     last_visibility_check[key] = { time = now, result = true }
                     return true
                 end
-                attempts += 1
+                attempts = attempts + 1
             else
                 last_visibility_check[key] = { time = now, result = false }
                 return false
@@ -162,13 +165,14 @@ local function is_visible(point, targetModel)
                 last_visibility_check[key] = { time = now, result = true }
                 return true
             end
-            attempts += 1
+            attempts = attempts + 1
         end
     end
 
     last_visibility_check[key] = { time = now, result = false }
     return false
 end
+
 
 local function find_closest()
     if not (players and camera) then return end
@@ -260,27 +264,37 @@ aimbot.init = function()
     end)
 
     local old_cframe_new = clonefunction(CFrame.new)
-    hook_function(CFrame.new, function(...)
-        if debug.info(3, 'n') == "send_shoot"
-            and settings.enabled
-            and settings.silent
-            and get_useable() then
+hook_function(CFrame.new, function(...)
+    if debug.info(3, 'n') == "send_shoot"
+        and settings.enabled
+        and settings.silent
+        and get_useable() then
 
-            local player, closest, screen_pos, aim_part = find_closest()
-            if player and closest and aim_part then
-                local vis = is_visible(aim_part.Position, closest)
-                if vis and screen_pos then showAimIndicator(screen_pos) else hideAimIndicator() end
-
-                local stack = debug.getstack(3, 3)
-                if stack and stack.Position then
-                    debug.setstack(3, 6, CFrame.lookAt(stack.Position, aim_part.Position))
-                end
+        local player, closest, screen_pos, aim_part = find_closest()
+        if player and closest and aim_part then
+            local vis = is_visible(aim_part.Position, closest, true)
+            if vis and screen_pos then
+                pcall(function() showAimIndicator(screen_pos) end)
             else
                 hideAimIndicator()
             end
+
+            local ok, st = pcall(function() return debug.getstack(3, 3) end)
+            if ok and st and st.Position then
+                local success, newCF = pcall(function()
+                    return CFrame.lookAt(st.Position, aim_part.Position)
+                end)
+                if success and newCF then
+                    pcall(function() debug.setstack(3, 6, newCF) end)
+                end
+            end
+        else
+            hideAimIndicator()
         end
-        return old_cframe_new(...)
-    end)
+    end
+    return old_cframe_new(...)
+end)
+
 end
 
 return aimbot
