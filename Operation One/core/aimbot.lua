@@ -14,8 +14,8 @@ local settings = {
     smoothing = 200,
     pressed = "aiming",
 
-    visibility = false,            
-    visibility_tolerance = 0.8,      
+    visibility = false,
+    visibility_tolerance = 0.8,
 
     hitbox_priority = {
         "head", "torso", "shoulder1", "shoulder2",
@@ -74,6 +74,7 @@ local function get_useable()
     ) or false
 end
 
+-- is_visible: single-ray, ignores only the local player's viewmodel whose instance name is literally "Viewmodels/<LocalPlayerName>"
 local function is_visible(point, targetModel)
     if not camera or not camera.CFrame then return false end
 
@@ -84,24 +85,22 @@ local function is_visible(point, targetModel)
     local params = RaycastParams.new()
     local filters = {}
 
-    if players and players.LocalPlayer and players.LocalPlayer.Character then
-        table.insert(filters, players.LocalPlayer.Character)
-    end
-
+    -- Handle the weird naming where the viewmodel instance name literally contains a slash:
+    -- workspace.Viewmodels["Viewmodels/LocalPlayerName"]
     local viewmodels_folder = workspace:FindFirstChild("Viewmodels")
     if viewmodels_folder and players and players.LocalPlayer then
-        local myVM = viewmodels_folder:FindFirstChild(players.LocalPlayer.Name)
-        if not myVM then
-            myVM = viewmodels_folder:FindFirstChild("Viewmodels/" .. players.LocalPlayer.Name)
-        end
-        if myVM then
-            table.insert(filters, myVM)
+        local localName = players.LocalPlayer.Name
+        local literalName = "Viewmodels/" .. localName
+        local myViewmodel = viewmodels_folder:FindFirstChild(literalName)
+        if myViewmodel then
+            table.insert(filters, myViewmodel)
         end
     end
 
     params.FilterType = Enum.RaycastFilterType.Blacklist
     params.FilterDescendantsInstances = filters
 
+    -- single raycast
     local result = workspace:Raycast(origin, direction, params)
     if not result then
         return true
@@ -114,12 +113,14 @@ local function is_visible(point, targetModel)
         return true
     end
 
+    -- safe-check for BasePart before reading properties
     if hit:IsA("BasePart") then
         local isTransparentEnough = (hit.Transparency >= settings.visibility_tolerance)
         if isTransparentEnough or not hit.CanCollide then
             return true
         end
     else
+        -- non-BasePart hits treated as non-blocking
         return true
     end
 
@@ -140,6 +141,7 @@ local function find_closest()
 
         local vm
         if viewmodels_folder then
+            -- handle both plain and literal-slash naming styles when searching others' viewmodels
             vm = viewmodels_folder:FindFirstChild(pl.Name)
                 or viewmodels_folder:FindFirstChild("Viewmodels/" .. pl.Name)
         end
@@ -211,13 +213,13 @@ aimbot.init = function()
             return
         end
 
-        start += (run_service.RenderStepped:Wait() * 1000)
+        start = start + (run_service.RenderStepped:Wait() * 1000)
         local lerp = math.clamp(start / settings.smoothing, 0, 1)
         local base_cframe = camera.CFrame:Lerp(
             CFrame.lookAt(camera.CFrame.Position, aim_part.Position, Vector3.new(0, 1, 0)),
             (1 - (1 - lerp) ^ 2)
         )
-        rot += (user_input_service:GetMouseDelta() * 0.0005)
+        rot = rot + (user_input_service:GetMouseDelta() * 0.0005)
         camera.CFrame = base_cframe * CFrame.Angles(0, -rot.X, 0) * CFrame.Angles(-rot.Y, 0, 0)
 
         if lerp >= 1 then
