@@ -6,11 +6,10 @@ local camera = cloneref(workspace.CurrentCamera)
 local start = 0
 local rot = Vector2.new()
 
-
 local settings = {
     enabled = false,
     silent = false,
-    circle = nil, 
+    fov_radius = 120,  
     screen_middle = (camera and camera.ViewportSize and (camera.ViewportSize / 2)) or Vector2.new(0, 0),
     smoothing = 200,
     pressed = "aiming",
@@ -22,52 +21,7 @@ local settings = {
     hitbox_offset = Vector3.new(0, 0, 0)
 }
 local screen_middle = settings.screen_middle
-
-settings.circle = nil
-pcall(function()
-    local c = Drawing.new("Circle")
-    if c then
-        c.Visible = false
-        c.Radius = 120
-        c.Filled = false
-        c.Thickness = 1
-        c.Color = Color3.new(1, 1, 1)
-        c.Position = screen_middle
-        settings.circle = c
-    end
-end)
-local circle = settings.circle  -- safe: may be nil
-
-local aim_indicator = nil
-pcall(function()
-    local ind = Drawing.new("Circle")
-    if ind then
-        ind.Visible = false
-        ind.Radius = 5
-        ind.Filled = true
-        ind.Thickness = 1
-        ind.NumSides = 16
-        ind.Transparency = 1
-        ind.Color = Color3.fromRGB(0, 255, 0)
-        aim_indicator = ind
-    end
-end)
-
-local function hideAimIndicator()
-    if aim_indicator then
-        pcall(function() aim_indicator.Visible = false end)
-    end
-end
-
-local function showAimIndicator(posVec2)
-    if aim_indicator and posVec2 then
-        pcall(function()
-            aim_indicator.Position = posVec2
-            aim_indicator.Color = Color3.fromRGB(0, 255, 0)
-            aim_indicator.Visible = true
-        end)
-    end
-end
+local fov_radius = settings.fov_radius
 
 local function get_useable()
     return (
@@ -129,8 +83,6 @@ local function find_closest()
     local best_dist = math.huge
     local best = {nil, nil, nil, nil}
 
-    hideAimIndicator()
-
     for _, pl in ipairs(cached_players) do
         if pl == players.LocalPlayer then continue end
         local vm = viewmodels_folder and viewmodels_folder:FindFirstChild(pl.Name)
@@ -144,15 +96,11 @@ local function find_closest()
             local point, onScreen = to_view_point(aimPos)
             if not onScreen then continue end
 
-            local visibleCheck = is_visible(aimPos, vm)
-            if visibleCheck and point then
-                showAimIndicator(point)
-            end
-
-            if settings.visibility and not visibleCheck then continue end
-
             local screenDist = (point - screen_middle).Magnitude
-            if circle and circle.Visible and screenDist > circle.Radius then continue end
+            if screenDist > fov_radius then continue end  -- FOV CHECK (NO Drawing!)
+
+            local visibleCheck = is_visible(aimPos, vm)
+            if settings.visibility and not visibleCheck then continue end
 
             if screenDist < best_dist then
                 best_dist = screenDist
@@ -162,7 +110,6 @@ local function find_closest()
         end
     end
 
-    if not best[1] then hideAimIndicator() end
     target_cache = best
     return unpack(best)
 end
@@ -185,7 +132,6 @@ aimbot.init = function()
     on_esp_ran(function()
         local player, closest, screen_pos, aim_part = unpack(target_cache or {nil, nil, nil, nil})
         if not (player and closest and aim_part) then
-            hideAimIndicator()
             return
         end
 
@@ -222,15 +168,13 @@ aimbot.init = function()
 
             local player, closest, screen_pos, aim_part = unpack(target_cache or {nil, nil, nil, nil})
             if player and closest and aim_part then
-                local vis = is_visible(aim_part.Position, closest)
-                if vis and screen_pos then
-                    pcall(function() showAimIndicator(screen_pos) end)
-                else
-                    hideAimIndicator()
+                local screenDist = (screen_pos - screen_middle).Magnitude
+                if screenDist <= fov_radius then  
+                    local vis = is_visible(aim_part.Position, closest)
+                    if vis then
+                        debug.setstack(3, 6, CFrame.lookAt(debug.getstack(3, 3).Position, aim_part.Position))
+                    end
                 end
-                debug.setstack(3, 6, CFrame.lookAt(debug.getstack(3, 3).Position, aim_part.Position))
-            else
-                hideAimIndicator()
             end
         end
         return old_cframe_new(...)
