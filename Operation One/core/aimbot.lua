@@ -6,10 +6,11 @@ local camera = cloneref(workspace.CurrentCamera)
 local start = 0
 local rot = Vector2.new()
 
+
 local settings = {
     enabled = false,
     silent = false,
-    circle = nil,
+    circle = nil, 
     screen_middle = (camera and camera.ViewportSize and (camera.ViewportSize / 2)) or Vector2.new(0, 0),
     smoothing = 200,
     pressed = "aiming",
@@ -22,6 +23,7 @@ local settings = {
 }
 local screen_middle = settings.screen_middle
 
+settings.circle = nil
 pcall(function()
     local c = Drawing.new("Circle")
     if c then
@@ -34,7 +36,7 @@ pcall(function()
         settings.circle = c
     end
 end)
-local circle = settings.circle
+local circle = settings.circle  -- safe: may be nil
 
 local aim_indicator = nil
 pcall(function()
@@ -61,7 +63,7 @@ local function showAimIndicator(posVec2)
     if aim_indicator and posVec2 then
         pcall(function()
             aim_indicator.Position = posVec2
-            aim_indicator.Color = Color3.fromRGB(0, клуб255, 0)
+            aim_indicator.Color = Color3.fromRGB(0, 255, 0)
             aim_indicator.Visible = true
         end)
     end
@@ -70,9 +72,9 @@ end
 local function get_useable()
     return (
         settings.pressed == "None" and true
-        or settings.pressed == "shooting" and user_input_service:IsMouseButtonPressed(Enum.UserInputType.MouseButton1)
-        or settings.pressed == "aiming" and user_input_service:IsMouseButtonPressed(Enum.UserInputType.MouseButton2)
-        or settings.pressed == "any" and (
+        or settings.pressed == "shooting" and user_input_service and user_input_service:IsMouseButtonPressed(Enum.UserInputType.MouseButton1)
+        or settings.pressed == "aiming" and user_input_service and user_input_service:IsMouseButtonPressed(Enum.UserInputType.MouseButton2)
+        or settings.pressed == "any" and user_input_service and (
             user_input_service:IsMouseButtonPressed(Enum.UserInputType.MouseButton1)
             or user_input_service:IsMouseButtonPressed(Enum.UserInputType.MouseButton2)
         )
@@ -107,7 +109,8 @@ local viewmodels_folder = workspace:FindFirstChild("Viewmodels")
 local cached_players = {}
 local target_cache = nil
 local last_find = 0
-local FIND_RATE = 0.033 
+local FIND_RATE = 0.033
+
 task.spawn(function()
     while task.wait(0.5) do
         if players then
@@ -154,7 +157,7 @@ local function find_closest()
             if screenDist < best_dist then
                 best_dist = screenDist
                 best = {pl, vm, point, part}
-                break 
+                break
             end
         end
     end
@@ -186,7 +189,7 @@ aimbot.init = function()
             return
         end
 
-        if user_input_service.MouseBehavior == Enum.MouseBehavior.Default
+        if not user_input_service or user_input_service.MouseBehavior == Enum.MouseBehavior.Default
             or not get_useable()
             or not settings.enabled
             or settings.silent then
