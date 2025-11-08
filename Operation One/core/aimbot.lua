@@ -10,15 +10,16 @@ local settings = {
     enabled = false,
     silent = false,
     circle = Drawing.new("Circle"),
-    screen_middle = (camera and camera.ViewportSize and (camera.ViewportSize / 2)) or Vector2.new(0, 0),
+    screen_middle = (camera and camera.ViewportSize and (camera.ViewportSize / 2)) or Vector2.new(0,0),
     smoothing = 200,
     pressed = "aiming",
 
     visibility = false,
-    visibility_tolerance = 0,
+    visibility_tolerance = 0.8,
 
     hitbox_priority = {
-        "leg2", "leg1", "hip2", "hip1", "shoulder2", "shoulder1", "torso", "head"
+        "head", "torso", "shoulder1", "shoulder2",
+        "arm1", "arm2", "hip1", "hip2", "leg1", "leg2"
     },
     hitbox_offset = Vector3.new(0, 0, 0)
 }
@@ -75,7 +76,6 @@ end
 
 local function is_visible(point, targetModel)
     if not camera or not camera.CFrame then return false end
-    if not players then return false end
 
     local origin = camera.CFrame.Position
     local direction = (point - origin)
@@ -83,59 +83,39 @@ local function is_visible(point, targetModel)
 
     local params = RaycastParams.new()
     local filters = {}
-    if players.LocalPlayer and players.LocalPlayer.Character then
-        table.insert(filters, players.LocalPlayer.Character)
+
+    local viewmodels_folder = workspace:FindFirstChild("Viewmodels")
+    if viewmodels_folder and players and players.LocalPlayer then
+        local localName = players.LocalPlayer.Name
+        local literalName = "Viewmodels/" .. localName
+        local myViewmodel = viewmodels_folder:FindFirstChild(literalName)
+        if myViewmodel then
+            table.insert(filters, myViewmodel)
+        end
     end
+
     params.FilterType = Enum.RaycastFilterType.Blacklist
     params.FilterDescendantsInstances = filters
 
-    local maxDistance = direction.Magnitude
-    local currentOrigin = origin
-    local remainingDir = point - currentOrigin -- clearer than previous expression
-    local attempts = 0
-    local maxAttempts = 5
-    local advanceOffset = 0.05
+    local result = workspace:Raycast(origin, direction, params)
+    if not result then
+        return true
+    end
 
-    while attempts < maxAttempts do
-        local result = workspace:Raycast(currentOrigin, remainingDir, params)
-        if not result then
+    local hit = result.Instance
+    if not hit then return true end
+
+    if targetModel and (hit == targetModel or hit:IsDescendantOf(targetModel)) then
+        return true
+    end
+
+    if hit:IsA("BasePart") then
+        local isTransparentEnough = (hit.Transparency >= settings.visibility_tolerance)
+        if isTransparentEnough or not hit.CanCollide then
             return true
         end
-
-        local hit = result.Instance
-        if not hit then
-            return true
-        end
-
-        -- if we hit the target model (or its children) then visible
-        if targetModel and (hit == targetModel or hit:IsDescendantOf(targetModel)) then
-            return true
-        end
-
-        if hit:IsA("BasePart") then
-            local transparentEnough = (hit.Transparency >= settings.visibility_tolerance)
-            local canCollide = hit.CanCollide
-
-            if transparentEnough or (canCollide == false) then
-                local unitRem = remainingDir.Unit
-                currentOrigin = result.Position + (unitRem * advanceOffset)
-                remainingDir = point - currentOrigin
-                if remainingDir.Magnitude <= 0 then
-                    return true
-                end
-                attempts = attempts + 1
-            else
-                return false
-            end
-        else
-            local unitRem = remainingDir.Unit
-            currentOrigin = result.Position + (unitRem * advanceOffset)
-            remainingDir = point - currentOrigin
-            if remainingDir.Magnitude <= 0 then
-                return true
-            end
-            attempts = attempts + 1
-        end
+    else
+        return true
     end
 
     return false
@@ -170,10 +150,8 @@ local function find_closest()
 
             local visibleCheck = is_visible(aimPos, vm)
 
-            if visibleCheck then
-                if point and point.X and point.Y then
-                    showAimIndicator(point)
-                end
+            if visibleCheck and point and point.X and point.Y then
+                showAimIndicator(point)
             end
 
             if settings.visibility and not visibleCheck then
@@ -211,9 +189,12 @@ aimbot.init = function()
 
     on_esp_ran(function()
         local player, closest, screen_pos, aim_part = find_closest()
-        if not (player and closest and aim_part) then
+        if not (player and closest and aim_part) then return end
+
+        if is_visible(aim_part.Position, closest) and screen_pos then
+            showAimIndicator(screen_pos)
+        else
             hideAimIndicator()
-            return
         end
 
         if user_input_service.MouseBehavior == Enum.MouseBehavior.Default
@@ -249,8 +230,7 @@ aimbot.init = function()
             and get_useable() then
             local player, closest, screen_pos, aim_part = find_closest()
             if player and closest and aim_part then
-                local vis = is_visible(aim_part.Position, closest)
-                if vis and screen_pos then
+                if is_visible(aim_part.Position, closest) and screen_pos then
                     pcall(function() showAimIndicator(screen_pos) end)
                 else
                     hideAimIndicator()
