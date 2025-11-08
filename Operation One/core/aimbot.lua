@@ -44,7 +44,7 @@ pcall(function()
     aim_indicator.Thickness = 1
     aim_indicator.NumSides = 16
     aim_indicator.Transparency = 1
-    aim_indicator.Color = Color3.fromRGB(0, 255, 0) -- green
+    aim_indicator.Color = Color3.fromRGB(0, 255, 0)
 end)
 
 local function hideAimIndicator()
