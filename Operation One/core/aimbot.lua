@@ -44,7 +44,7 @@ pcall(function()
     aim_indicator.Thickness = 1
     aim_indicator.NumSides = 16
     aim_indicator.Transparency = 1
-    aim_indicator.Color = Color3.fromRGB(0, 255, 0)
+    aim_indicator.Color = Color3.fromRGB(0, 255, 0) -- green
 end)
 
 local function hideAimIndicator()
@@ -75,6 +75,7 @@ end
 
 local function is_visible(point, targetModel)
     if not camera or not camera.CFrame then return false end
+    if not players then return false end
 
     local origin = camera.CFrame.Position
     local direction = (point - origin)
@@ -82,32 +83,18 @@ local function is_visible(point, targetModel)
 
     local params = RaycastParams.new()
     local filters = {}
-
-    local viewmodels_folder = workspace:FindFirstChild("Viewmodels")
-    if viewmodels_folder and players and players.LocalPlayer then
-        local localName = players.LocalPlayer.Name
-        local myVM = viewmodels_folder:FindFirstChild(localName)
-            or viewmodels_folder:FindFirstChild("Viewmodels/" .. localName) -- literal-slash name
-        if not myVM then
-            local nested = viewmodels_folder:FindFirstChild("Viewmodels")
-            if nested then
-                myVM = nested:FindFirstChild(localName)
-                    or nested:FindFirstChild("Viewmodels/" .. localName)
-            end
-        end
-        if myVM then
-            table.insert(filters, myVM)
-        end
+    if players.LocalPlayer and players.LocalPlayer.Character then
+        table.insert(filters, players.LocalPlayer.Character)
     end
-
     params.FilterType = Enum.RaycastFilterType.Blacklist
     params.FilterDescendantsInstances = filters
 
     local maxDistance = direction.Magnitude
-    local remainingDir = direction.Unit * maxDistance
     local currentOrigin = origin
+    local remainingDir = point - currentOrigin 
     local attempts = 0
     local maxAttempts = 5
+    local advanceOffset = 0.05
 
     while attempts < maxAttempts do
         local result = workspace:Raycast(currentOrigin, remainingDir, params)
@@ -125,16 +112,27 @@ local function is_visible(point, targetModel)
         end
 
         if hit:IsA("BasePart") then
-            if hit.Transparency >= settings.visibility_tolerance or not hit.CanCollide then
-                currentOrigin = result.Position + (remainingDir.Unit * 0.05)
+            local transparentEnough = (hit.Transparency >= settings.visibility_tolerance)
+            local canCollide = hit.CanCollide
+
+            if transparentEnough or (canCollide == false) then
+                local unitRem = remainingDir.Unit
+                currentOrigin = result.Position + (unitRem * advanceOffset)
                 remainingDir = point - currentOrigin
+                if remainingDir.Magnitude <= 0 then
+                    return true
+                end
                 attempts = attempts + 1
             else
                 return false
             end
         else
-            currentOrigin = result.Position + (remainingDir.Unit * 0.05)
+            local unitRem = remainingDir.Unit
+            currentOrigin = result.Position + (unitRem * advanceOffset)
             remainingDir = point - currentOrigin
+            if remainingDir.Magnitude <= 0 then
+                return true
+            end
             attempts = attempts + 1
         end
     end
@@ -148,7 +146,6 @@ local function find_closest()
     local BestDistance = math.huge
     local screen_mid = settings.screen_middle or screen_middle
     local viewmodels_folder = workspace:FindFirstChild("Viewmodels")
-
 
     hideAimIndicator()
 
