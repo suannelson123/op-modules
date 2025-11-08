@@ -9,7 +9,7 @@ local rot = Vector2.new()
 local settings = {
     enabled = false,
     silent = false,
-    circle = Drawing.new("Circle"),
+    circle = nil,
     screen_middle = (camera and camera.ViewportSize and (camera.ViewportSize / 2)) or Vector2.new(0, 0),
     smoothing = 200,
     pressed = "aiming",
@@ -21,27 +21,34 @@ local settings = {
     hitbox_offset = Vector3.new(0, 0, 0)
 }
 local screen_middle = settings.screen_middle
-local circle = settings.circle
 
 pcall(function()
-    circle.Visible = false
-    circle.Radius = 120
-    circle.Filled = false
-    circle.Thickness = 1
-    circle.Color = Color3.new(1, 1, 1)
-    circle.Position = screen_middle
+    local c = Drawing.new("Circle")
+    if c then
+        c.Visible = false
+        c.Radius = 120
+        c.Filled = false
+        c.Thickness = 1
+        c.Color = Color3.new(1, 1, 1)
+        c.Position = screen_middle
+        settings.circle = c
+    end
 end)
+local circle = settings.circle
 
 local aim_indicator = nil
 pcall(function()
-    aim_indicator = Drawing.new("Circle")
-    aim_indicator.Visible = false
-    aim_indicator.Radius = 5
-    aim_indicator.Filled = true
-    aim_indicator.Thickness = 1
-    aim_indicator.NumSides = 16
-    aim_indicator.Transparency = 1
-    aim_indicator.Color = Color3.fromRGB(0, 255, 0)
+    local ind = Drawing.new("Circle")
+    if ind then
+        ind.Visible = false
+        ind.Radius = 5
+        ind.Filled = true
+        ind.Thickness = 1
+        ind.NumSides = 16
+        ind.Transparency = 1
+        ind.Color = Color3.fromRGB(0, 255, 0)
+        aim_indicator = ind
+    end
 end)
 
 local function hideAimIndicator()
@@ -54,7 +61,7 @@ local function showAimIndicator(posVec2)
     if aim_indicator and posVec2 then
         pcall(function()
             aim_indicator.Position = posVec2
-            aim_indicator.Color = Color3.fromRGB(0, 255, 0)
+            aim_indicator.Color = Color3.fromRGB(0, клуб255, 0)
             aim_indicator.Visible = true
         end)
     end
@@ -80,7 +87,7 @@ local function is_visible(point, targetModel)
 
     local params = RaycastParams.new()
     local filters = {}
-    if players.LocalPlayer and players.LocalPlayer.Character then
+    if players and players.LocalPlayer and players.LocalPlayer.Character then
         table.insert(filters, players.LocalPlayer.Character)
     end
     params.FilterType = Enum.RaycastFilterType.Blacklist
@@ -100,11 +107,12 @@ local viewmodels_folder = workspace:FindFirstChild("Viewmodels")
 local cached_players = {}
 local target_cache = nil
 local last_find = 0
-local FIND_RATE = 0.033  
-
+local FIND_RATE = 0.033 
 task.spawn(function()
     while task.wait(0.5) do
-        cached_players = players:GetPlayers()
+        if players then
+            cached_players = players:GetPlayers()
+        end
     end
 end)
 
@@ -122,7 +130,7 @@ local function find_closest()
 
     for _, pl in ipairs(cached_players) do
         if pl == players.LocalPlayer then continue end
-        local vm = viewmodels_folder and (viewmodels_folder:FindFirstChild(pl.Name))
+        local vm = viewmodels_folder and viewmodels_folder:FindFirstChild(pl.Name)
         if not vm or not vm:FindFirstChild("EnemyHighlight") then continue end
 
         for _, partName in ipairs(settings.hitbox_priority) do
@@ -141,7 +149,7 @@ local function find_closest()
             if settings.visibility and not visibleCheck then continue end
 
             local screenDist = (point - screen_middle).Magnitude
-            if circle.Visible and screenDist > circle.Radius then continue end
+            if circle and circle.Visible and screenDist > circle.Radius then continue end
 
             if screenDist < best_dist then
                 best_dist = screenDist
@@ -157,6 +165,7 @@ local function find_closest()
 end
 
 rawset(aimbot, "aimbot_settings", settings)
+
 aimbot.init = function()
     user_input_service = get_service("UserInputService")
     run_service = get_service("RunService")
