@@ -14,8 +14,7 @@ local settings = {
     smoothing = 200,
     pressed = "aiming",
 
-    visibility = false,
-    visibility_tolerance = 0,
+    visibility = false, 
 
     hitbox_priority = {
         "leg2", "leg1", "hip2", "hip1", "shoulder2", "shoulder1", "torso", "head"
@@ -73,7 +72,23 @@ local function get_useable()
     ) or false
 end
 
--- Improved multi-ray visibility check (same behavior, safer and clearer)
+local function get_visibility_tolerance(part)
+    if not part or not part:IsA("BasePart") then
+        return 1 
+    end
+
+    local mat = part.Material
+    if mat == Enum.Material.Glass or mat == Enum.Material.ForceField then
+        return 0.3
+    elseif mat == Enum.Material.Water then
+        return 0.5
+    elseif mat == Enum.Material.Neon then
+        return 0.2
+    else
+        return 0 
+    end
+end
+
 local function is_visible(point, targetModel)
     if not camera or not camera.CFrame then return false end
     if not players then return false end
@@ -82,7 +97,6 @@ local function is_visible(point, targetModel)
     local direction = (point - origin)
     if direction.Magnitude <= 0 then return true end
 
-    -- build RaycastParams and blacklist local character (same as original)
     local params = RaycastParams.new()
     local filters = {}
     if players.LocalPlayer and players.LocalPlayer.Character then
@@ -91,65 +105,45 @@ local function is_visible(point, targetModel)
     params.FilterType = Enum.RaycastFilterType.Blacklist
     params.FilterDescendantsInstances = filters
 
-    -- iterative raycast variables
-    local maxDistance = direction.Magnitude
     local currentOrigin = origin
-    local remainingDir = point - currentOrigin -- clearer than previous expression
+    local remainingDir = point - currentOrigin
     local attempts = 0
     local maxAttempts = 5
     local advanceOffset = 0.05
 
     while attempts < maxAttempts do
-        -- do a raycast from currentOrigin towards the remaining vector
         local result = workspace:Raycast(currentOrigin, remainingDir, params)
-        if not result then
-            -- nothing in the way between currentOrigin and point
-            return true
-        end
+        if not result then return true end
 
         local hit = result.Instance
-        if not hit then
-            return true
-        end
+        if not hit then return true end
 
-        -- if we hit the target model (or its children) then visible
         if targetModel and (hit == targetModel or hit:IsDescendantOf(targetModel)) then
             return true
         end
 
-        -- If hit is a BasePart, check transparency & collision safely
         if hit:IsA("BasePart") then
-            local transparentEnough = (hit.Transparency >= settings.visibility_tolerance)
+            local transparentEnough = (hit.Transparency >= get_visibility_tolerance(hit))
             local canCollide = hit.CanCollide
 
             if transparentEnough or (canCollide == false) then
-                -- advance origin slightly past the hit and recompute remaining vector
                 local unitRem = remainingDir.Unit
                 currentOrigin = result.Position + (unitRem * advanceOffset)
                 remainingDir = point - currentOrigin
-                if remainingDir.Magnitude <= 0 then
-                    return true
-                end
+                if remainingDir.Magnitude <= 0 then return true end
                 attempts = attempts + 1
-                -- continue loop to test next obstruction
             else
-                -- opaque, collidable part blocks visibility
                 return false
             end
         else
-            -- non-BasePart (e.g., some special Instances): treat as penetrable
-            -- advance origin and continue
             local unitRem = remainingDir.Unit
             currentOrigin = result.Position + (unitRem * advanceOffset)
             remainingDir = point - currentOrigin
-            if remainingDir.Magnitude <= 0 then
-                return true
-            end
+            if remainingDir.Magnitude <= 0 then return true end
             attempts = attempts + 1
         end
     end
 
-    -- exceeded allowed penetrations
     return false
 end
 
