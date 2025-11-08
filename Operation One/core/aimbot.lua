@@ -14,8 +14,8 @@ local settings = {
     smoothing = 200,
     pressed = "aiming",
 
-    visibility = false,              
-    visibility_tolerance = 0.8,     
+    visibility = false,            
+    visibility_tolerance = 0,    
 
     hitbox_priority = {
         "head", "torso", "shoulder1", "shoulder2",
@@ -49,17 +49,17 @@ pcall(function()
 end)
 
 local function hideAimIndicator()
-    if aim_indicator then pcall(function() aim_indicator.Visible = false end) end
+    if not aim_indicator then return end
+    pcall(function() aim_indicator.Visible = false end)
 end
 
 local function showAimIndicator(posVec2)
-    if aim_indicator then
-        pcall(function()
-            aim_indicator.Position = posVec2
-            aim_indicator.Color = Color3.fromRGB(0, 255, 0)
-            aim_indicator.Visible = true
-        end)
-    end
+    if not aim_indicator then return end
+    pcall(function()
+        aim_indicator.Position = posVec2
+        aim_indicator.Color = Color3.fromRGB(0, 255, 0)
+        aim_indicator.Visible = true
+    end)
 end
 
 local function get_useable()
@@ -79,31 +79,64 @@ local function is_visible(point, targetModel)
 
     local origin = camera.CFrame.Position
     local direction = (point - origin)
-    if direction.Magnitude <= 0 then return true end
+    local distance = direction.Magnitude
+    if distance <= 0 then return true end
 
     local params = RaycastParams.new()
-    local filters = {}
-    if players and players.LocalPlayer and players.LocalPlayer.Character then
-        table.insert(filters, players.LocalPlayer.Character)
-    end
     params.FilterType = Enum.RaycastFilterType.Blacklist
-    params.FilterDescendantsInstances = filters
+    params.FilterDescendantsInstances = {}
 
-    local result = workspace:Raycast(origin, direction, params)
-    if not result then
-        return true 
+    if players and players.LocalPlayer and players.LocalPlayer.Character then
+        table.insert(params.FilterDescendantsInstances, players.LocalPlayer.Character)
     end
 
-    local hit = result.Instance
-    if not hit then return true end
+    local vmFolder = workspace:FindFirstChild("Viewmodels")
+    if vmFolder then
+        local localVm = vmFolder:FindFirstChild(players.LocalPlayer.Name)
+        if localVm then table.insert(params.FilterDescendantsInstances, localVm) end
 
-    if targetModel and (hit == targetModel or hit:IsDescendantOf(targetModel)) then
-        return true
+        local altName = "Viewmodels/" .. (players.LocalPlayer and players.LocalPlayer.Name or "")
+        local localVmAlt = vmFolder:FindFirstChild(altName)
+        if localVmAlt then table.insert(params.FilterDescendantsInstances, localVmAlt) end
     end
 
-    local isTransparentEnough = (hit.Transparency >= settings.visibility_tolerance)
-    if isTransparentEnough or not hit.CanCollide then
-        return true
+    local currentOrigin = origin
+    local remaining = direction.Unit * distance
+    local attempts = 0
+    local maxAttempts = 6
+    local eps = 0.05
+
+    while attempts < maxAttempts do
+        local result = workspace:Raycast(currentOrigin, remaining, params)
+        if not result then
+            return true
+        end
+
+        local hit = result.Instance
+        if not hit then
+            return true
+        end
+
+        if targetModel and (hit == targetModel or hit:IsDescendantOf(targetModel)) then
+            return true
+        end
+
+        local skipHit = false
+        if not hit.CanCollide then
+            skipHit = true
+        elseif hit.Transparency > settings.visibility_tolerance then
+            skipHit = true
+        end
+
+        if skipHit then
+            local hitPos = result.Position
+            currentOrigin = hitPos + remaining.Unit * eps
+            remaining = (point - currentOrigin)
+            if remaining.Magnitude <= 0.01 then return true end
+            attempts = attempts + 1
+        else
+            return false
+        end
     end
 
     return false
@@ -115,6 +148,8 @@ local function find_closest()
     local BestDistance = math.huge
     local screen_mid = settings.screen_middle or screen_middle
     local viewmodels_folder = workspace:FindFirstChild("Viewmodels")
+
+    hideAimIndicator()
 
     for _, pl in ipairs(PlayerAmt) do
         if pl == players.LocalPlayer then continue end
@@ -134,6 +169,16 @@ local function find_closest()
             local point, onScreen = to_view_point(aimPos)
             if not onScreen then continue end
 
+            local visibleCheck = is_visible(aimPos, vm)
+
+            if visibleCheck and point and point.X and point.Y then
+                showAimIndicator(point)
+            end
+
+            if settings.visibility and not visibleCheck then
+                continue
+            end
+
             local screenDist = (point - screen_mid).Magnitude
             if settings.circle and settings.circle.Visible and screenDist > settings.circle.Radius then
                 continue
@@ -149,6 +194,10 @@ local function find_closest()
         end
     end
 
+    if not ClosestPlayer then
+        hideAimIndicator()
+    end
+
     return ClosestPlayer, ClosestViewmodel, ClosestScreenPos, ClosestPart
 end
 
@@ -161,17 +210,9 @@ aimbot.init = function()
 
     on_esp_ran(function()
         local player, closest, screen_pos, aim_part = find_closest()
-        if not (player and closest and aim_part) then
-            hideAimIndicator()
-            return
-        end
+        if not (player and closest and aim_part) then return end
 
-        local isVisible = true
-        if settings.visibility then
-            isVisible = is_visible(aim_part.Position, closest)
-        end
-
-        if isVisible and screen_pos then
+        if is_visible(aim_part.Position, closest) and screen_pos then
             showAimIndicator(screen_pos)
         else
             hideAimIndicator()
@@ -208,16 +249,14 @@ aimbot.init = function()
             and settings.enabled
             and settings.silent
             and get_useable() then
-
             local player, closest, screen_pos, aim_part = find_closest()
             if player and closest and aim_part then
-                local isVisible = not settings.visibility or is_visible(aim_part.Position, closest)
-                if isVisible and screen_pos then
-                    showAimIndicator(screen_pos)
-                    debug.setstack(3, 6, CFrame.lookAt(debug.getstack(3, 3).Position, aim_part.Position))
+                if is_visible(aim_part.Position, closest) and screen_pos then
+                    pcall(function() showAimIndicator(screen_pos) end)
                 else
                     hideAimIndicator()
                 end
+                debug.setstack(3, 6, CFrame.lookAt(debug.getstack(3, 3).Position, aim_part.Position))
             else
                 hideAimIndicator()
             end
