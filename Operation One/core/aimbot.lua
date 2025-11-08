@@ -74,7 +74,6 @@ local function get_useable()
     ) or false
 end
 
--- is_visible: single-ray, ignores only the local player's viewmodel whose instance name is literally "Viewmodels/<LocalPlayerName>"
 local function is_visible(point, targetModel)
     if not camera or not camera.CFrame then return false end
 
@@ -85,8 +84,6 @@ local function is_visible(point, targetModel)
     local params = RaycastParams.new()
     local filters = {}
 
-    -- Handle the weird naming where the viewmodel instance name literally contains a slash:
-    -- workspace.Viewmodels["Viewmodels/LocalPlayerName"]
     local viewmodels_folder = workspace:FindFirstChild("Viewmodels")
     if viewmodels_folder and players and players.LocalPlayer then
         local localName = players.LocalPlayer.Name
@@ -100,7 +97,6 @@ local function is_visible(point, targetModel)
     params.FilterType = Enum.RaycastFilterType.Blacklist
     params.FilterDescendantsInstances = filters
 
-    -- single raycast
     local result = workspace:Raycast(origin, direction, params)
     if not result then
         return true
@@ -113,14 +109,12 @@ local function is_visible(point, targetModel)
         return true
     end
 
-    -- safe-check for BasePart before reading properties
     if hit:IsA("BasePart") then
         local isTransparentEnough = (hit.Transparency >= settings.visibility_tolerance)
         if isTransparentEnough or not hit.CanCollide then
             return true
         end
     else
-        -- non-BasePart hits treated as non-blocking
         return true
     end
 
@@ -141,7 +135,6 @@ local function find_closest()
 
         local vm
         if viewmodels_folder then
-            -- handle both plain and literal-slash naming styles when searching others' viewmodels
             vm = viewmodels_folder:FindFirstChild(pl.Name)
                 or viewmodels_folder:FindFirstChild("Viewmodels/" .. pl.Name)
         end
