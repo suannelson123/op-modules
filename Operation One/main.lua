@@ -108,16 +108,16 @@ end
         local library = loadstring(game:HttpGet("https://raw.githubusercontent.com/violin-suzutsuki/LinoriaLib/main/Library.lua"))()
         local theme_manager = loadstring(game:HttpGet("https://raw.githubusercontent.com/violin-suzutsuki/LinoriaLib/main/addons/ThemeManager.lua"))()
         local save_manager = loadstring(game:HttpGet("https://raw.githubusercontent.com/violin-suzutsuki/LinoriaLib/main/addons/SaveManager.lua"))()
-        local window = library:CreateWindow({Title = "BOrat na tite2 | Pid: " .. game.PlaceVersion, Center = true, AutoShow = true, TabPadding = 8, MenuFadeTime = 0.2});
+        local window = library:CreateWindow({Title = "Test By NIGGA | Pid: " .. game.PlaceVersion, Center = true, AutoShow = true, TabPadding = 8, MenuFadeTime = 0.2});
         
         local combat = window:AddTab("Combat") do
 
             local aimbot_groupbox = combat:AddLeftGroupbox("Aimbot") do
                 
                 aimbot_groupbox:AddToggle('aimbot_enable', {
-    Text = "Enable",
-    Default = false,
-    Callback = function(value: boolean)
+    	Text = "Enable",
+   	 Default = false,
+    	Callback = function(value: boolean)
         aimbot_settings.enabled = value
     end
 })
@@ -129,13 +129,16 @@ aimbot_groupbox:AddToggle('aimbot_psilent', {
         aimbot_settings.silent = value
     end
 })
-            aimbot_groupbox:AddToggle('aimbot_enable', {
-    Text = "Enable",
+   
+aimbot_groupbox:AddToggle('aimbot_visibility', {
+    Text = "Visibility",
     Default = false,
+    Tooltip = "Only target enemies visible on screen (not behind walls)",
     Callback = function(value: boolean)
-        aimbot_settings.enabled = value
+        aimbot_settings.visibility = value
     end
 })
+
 
 
 
@@ -239,20 +242,23 @@ aimbot_groupbox:AddSlider('aimbot_fov_size', {
         end;
 
         local esp = window:AddTab("ESP") do
+
     local player_esp_groupbox = esp:AddLeftGroupbox("Player") do
-        local player_esp_skelton = player_esp_groupbox:AddToggle('player_esp_skelton', {
-            Text = "Skelton", Default = false,
+        local player_esp_skeleton = player_esp_groupbox:AddToggle('player_esp_skeleton', {
+            Text = "Skeleton", Default = false,
             Callback = function(value)
                 esp_player_settings.skelton = value
             end
         })
-        player_esp_skelton:AddColorPicker('player_esp_skelton_color', {
-            Default = Color3.fromRGB(255, 255, 255), Title = "Skelton Color",
+
+        player_esp_skeleton:AddColorPicker('player_esp_skeleton_color', {
+            Default = Color3.fromRGB(255, 255, 255),
+            Title = "Skeleton Color",
             Callback = function(value)
                 esp_player_settings.skelton_color = value
             end
         })
-       
+
         player_esp_groupbox:AddToggle('player_esp_health_bar', {
             Text = "Health Bar", Default = false,
             Callback = function(value)
@@ -261,8 +267,38 @@ aimbot_groupbox:AddSlider('aimbot_fov_size', {
         })
     end
 
-   
-end
+    local object_esp_groupbox = esp:AddRightGroupbox("Gadgets") do
+        local claymore_toggle = object_esp_groupbox:AddToggle('object_esp_claymore', {
+            Text = "Claymores", Default = false,
+            Callback = function(value)
+                esp_player_settings.show_claymores = value
+            end
+        })
+
+        claymore_toggle:AddColorPicker('object_esp_claymore_color', {
+            Default = Color3.fromRGB(255, 0, 0),
+            Title = "Claymore Color",
+            Callback = function(value)
+                esp_player_settings.claymore_color = value
+            end
+        })
+
+        local drone_toggle = object_esp_groupbox:AddToggle('object_esp_drone', {
+            Text = "Drones", Default = false,
+            Callback = function(value)
+                esp_player_settings.show_drones = value
+            end
+        })
+
+        drone_toggle:AddColorPicker('object_esp_drone_color', {
+            Default = Color3.fromRGB(0, 255, 255),
+            Title = "Drone Color",
+            Callback = function(value)
+                esp_player_settings.drone_color = value
+            end
+        })
+    end
+
 
         local _local = window:AddTab("Local") do
 
@@ -325,4 +361,5 @@ end
     end;
 
     getgenv().loaded = true;
+		end
 end;
