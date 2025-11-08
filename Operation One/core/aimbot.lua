@@ -1,4 +1,3 @@
--- optimized aimbot (FPS improvements)
 local aimbot = {}
 local user_input_service
 local run_service
