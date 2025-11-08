@@ -10,14 +10,15 @@ local settings = {
     enabled = false,
     silent = false,
     circle = Drawing.new("Circle"),
-    screen_middle = (camera and camera.ViewportSize and (camera.ViewportSize / 2)) or Vector2.new(0, 0),
+    screen_middle = (camera.ViewportSize / 2),
     smoothing = 200,
     pressed = "aiming",
 
-    visibility = false, 
-
+    visibility = false,             
+    max_ray_attempts = 2,       
     hitbox_priority = {
-        "leg2", "leg1", "hip2", "hip1", "shoulder2", "shoulder1", "torso", "head"
+        "head", "torso", "shoulder1", "shoulder2",
+        "arm1", "arm2", "hip1", "hip2", "leg1", "leg2"
     },
     hitbox_offset = Vector3.new(0, 0, 0)
 }
@@ -73,10 +74,7 @@ local function get_useable()
 end
 
 local function get_visibility_tolerance(part)
-    if not part or not part:IsA("BasePart") then
-        return 1 
-    end
-
+    if not part or not part:IsA("BasePart") then return 1 end
     local mat = part.Material
     if mat == Enum.Material.Glass or mat == Enum.Material.ForceField then
         return 0.3
@@ -85,13 +83,12 @@ local function get_visibility_tolerance(part)
     elseif mat == Enum.Material.Neon then
         return 0.2
     else
-        return 0 
+        return 0
     end
 end
 
 local function is_visible(point, targetModel)
     if not camera or not camera.CFrame then return false end
-    if not players then return false end
 
     local origin = camera.CFrame.Position
     local direction = (point - origin)
@@ -99,48 +96,41 @@ local function is_visible(point, targetModel)
 
     local params = RaycastParams.new()
     local filters = {}
-    if players.LocalPlayer and players.LocalPlayer.Character then
+    if players and players.LocalPlayer and players.LocalPlayer.Character then
         table.insert(filters, players.LocalPlayer.Character)
     end
+    table.insert(filters, camera) 
+
     params.FilterType = Enum.RaycastFilterType.Blacklist
     params.FilterDescendantsInstances = filters
 
+    local maxDistance = direction.Magnitude
+    local remainingDir = direction.Unit * maxDistance
     local currentOrigin = origin
-    local remainingDir = point - currentOrigin
     local attempts = 0
-    local maxAttempts = 5
-    local advanceOffset = 0.05
 
-    while attempts < maxAttempts do
+    while attempts < settings.max_ray_attempts do
         local result = workspace:Raycast(currentOrigin, remainingDir, params)
-        if not result then return true end
+        if not result then
+            return true
+        end
 
         local hit = result.Instance
-        if not hit then return true end
+        if not hit then
+            return true
+        end
 
         if targetModel and (hit == targetModel or hit:IsDescendantOf(targetModel)) then
             return true
         end
 
-        if hit:IsA("BasePart") then
-            local transparentEnough = (hit.Transparency >= get_visibility_tolerance(hit))
-            local canCollide = hit.CanCollide
-
-            if transparentEnough or (canCollide == false) then
-                local unitRem = remainingDir.Unit
-                currentOrigin = result.Position + (unitRem * advanceOffset)
-                remainingDir = point - currentOrigin
-                if remainingDir.Magnitude <= 0 then return true end
-                attempts = attempts + 1
-            else
-                return false
-            end
-        else
-            local unitRem = remainingDir.Unit
-            currentOrigin = result.Position + (unitRem * advanceOffset)
-            remainingDir = point - currentOrigin
-            if remainingDir.Magnitude <= 0 then return true end
+        local tol = get_visibility_tolerance(hit)
+        if hit.Transparency >= tol or not hit.CanCollide then
+            currentOrigin = result.Position + (remainingDir.Unit * 0.05)
+            remainingDir = direction - (currentOrigin - origin)
             attempts = attempts + 1
+        else
+            return false
         end
     end
 
@@ -162,7 +152,6 @@ local function find_closest()
         local vm
         if viewmodels_folder then
             vm = viewmodels_folder:FindFirstChild(pl.Name)
-                or viewmodels_folder:FindFirstChild("Viewmodels/" .. pl.Name)
         end
         if not vm or not vm:FindFirstChild("EnemyHighlight") then continue end
 
@@ -176,10 +165,8 @@ local function find_closest()
 
             local visibleCheck = is_visible(aimPos, vm)
 
-            if visibleCheck then
-                if point and point.X and point.Y then
-                    showAimIndicator(point)
-                end
+            if visibleCheck and point then
+                showAimIndicator(point)
             end
 
             if settings.visibility and not visibleCheck then
@@ -231,13 +218,13 @@ aimbot.init = function()
             return
         end
 
-        start = start + (run_service.RenderStepped:Wait() * 1000)
+        start += (run_service.RenderStepped:Wait() * 1000)
         local lerp = math.clamp(start / settings.smoothing, 0, 1)
         local base_cframe = camera.CFrame:Lerp(
             CFrame.lookAt(camera.CFrame.Position, aim_part.Position, Vector3.new(0, 1, 0)),
             (1 - (1 - lerp) ^ 2)
         )
-        rot = rot + (user_input_service:GetMouseDelta() * 0.0005)
+        rot += (user_input_service:GetMouseDelta() * 0.0005)
         camera.CFrame = base_cframe * CFrame.Angles(0, -rot.X, 0) * CFrame.Angles(-rot.Y, 0, 0)
 
         if lerp >= 1 then
