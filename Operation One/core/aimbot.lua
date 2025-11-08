@@ -10,7 +10,7 @@ local settings = {
     enabled = false,
     silent = false,
     circle = Drawing.new("Circle"),
-    screen_middle = (camera.ViewportSize / 2),
+    screen_middle = (camera and camera.ViewportSize and (camera.ViewportSize / 2)) or Vector2.new(0,0),
     smoothing = 200,
     pressed = "aiming",
 
@@ -83,9 +83,22 @@ local function is_visible(point, targetModel)
 
     local params = RaycastParams.new()
     local filters = {}
+
     if players and players.LocalPlayer and players.LocalPlayer.Character then
         table.insert(filters, players.LocalPlayer.Character)
     end
+
+    local viewmodels_folder = workspace:FindFirstChild("Viewmodels")
+    if viewmodels_folder and players and players.LocalPlayer then
+        local myVM = viewmodels_folder:FindFirstChild(players.LocalPlayer.Name)
+        if not myVM then
+            myVM = viewmodels_folder:FindFirstChild("Viewmodels/" .. players.LocalPlayer.Name)
+        end
+        if myVM then
+            table.insert(filters, myVM)
+        end
+    end
+
     params.FilterType = Enum.RaycastFilterType.Blacklist
     params.FilterDescendantsInstances = filters
 
@@ -97,13 +110,16 @@ local function is_visible(point, targetModel)
     local hit = result.Instance
     if not hit then return true end
 
-  
     if targetModel and (hit == targetModel or hit:IsDescendantOf(targetModel)) then
         return true
     end
 
-    local isTransparentEnough = (hit.Transparency >= settings.visibility_tolerance)
-    if isTransparentEnough or not hit.CanCollide then
+    if hit:IsA("BasePart") then
+        local isTransparentEnough = (hit.Transparency >= settings.visibility_tolerance)
+        if isTransparentEnough or not hit.CanCollide then
+            return true
+        end
+    else
         return true
     end
 
