@@ -16,7 +16,7 @@ local settings = {
 
     visibility = false,             
     visibility_tolerance = 0,       
-    max_ray_attempts = 2,           -- reduced attempts for performance
+    max_ray_attempts = 2,       
 
     hitbox_priority = {
        "leg2", "leg1", "hip2", "hip1", "shoulder2", "shoulder1", "torso", "head"
