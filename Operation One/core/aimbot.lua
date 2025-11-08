@@ -9,7 +9,7 @@ local rot = Vector2.new()
 local settings = {
     enabled = false,
     silent = false,
-    fov_radius = 120,  
+    circle = nil, 
     screen_middle = (camera and camera.ViewportSize and (camera.ViewportSize / 2)) or Vector2.new(0, 0),
     smoothing = 200,
     pressed = "aiming",
@@ -21,7 +21,52 @@ local settings = {
     hitbox_offset = Vector3.new(0, 0, 0)
 }
 local screen_middle = settings.screen_middle
-local fov_radius = settings.fov_radius
+
+settings.circle = nil
+pcall(function()
+    local c = Drawing.new("Circle")
+    if c then
+        c.Visible = false
+        c.Radius = 120
+        c.Filled = false
+        c.Thickness = 1
+        c.Color = Color3.new(1, 1, 1)
+        c.Position = screen_middle
+        settings.circle = c
+    end
+end)
+local circle = settings.circle
+
+local aim_indicator = nil
+pcall(function()
+    local ind = Drawing.new("Circle")
+    if ind then
+        ind.Visible = false
+        ind.Radius = 5
+        ind.Filled = true
+        ind.Thickness = 1
+        ind.NumSides = 16
+        ind.Transparency = 1
+        ind.Color = Color3.fromRGB(0, 255, 0)
+        aim_indicator = ind
+    end
+end)
+
+local function hideAimIndicator()
+    if aim_indicator then
+        pcall(function() aim_indicator.Visible = false end)
+    end
+end
+
+local function showAimIndicator(posVec2)
+    if aim_indicator and posVec2 then
+        pcall(function()
+            aim_indicator.Position = posVec2
+            aim_indicator.Color = Color3.fromRGB(0, 255, 0)
+            aim_indicator.Visible = true
+        end)
+    end
+end
 
 local function get_useable()
     return (
@@ -37,26 +82,51 @@ end
 
 local function is_visible(point, targetModel)
     if not camera or not camera.CFrame then return false end
+    if not players then return false end
     local origin = camera.CFrame.Position
-    local direction = point - origin
+    local direction = (point - origin)
     if direction.Magnitude <= 0 then return true end
-
     local params = RaycastParams.new()
     local filters = {}
-    if players and players.LocalPlayer and players.LocalPlayer.Character then
+    if players.LocalPlayer and players.LocalPlayer.Character then
         table.insert(filters, players.LocalPlayer.Character)
     end
     params.FilterType = Enum.RaycastFilterType.Blacklist
     params.FilterDescendantsInstances = filters
-
-    local result = workspace:Raycast(origin, direction, params)
-    if not result then return true end
-    local hit = result.Instance
-    if not hit then return true end
-    if targetModel and (hit == targetModel or hit:IsDescendantOf(targetModel)) then
-        return true
+    local currentOrigin = origin
+    local remainingDir = point - currentOrigin
+    local attempts = 0
+    local maxAttempts = 5
+    local advanceOffset = 0.05
+    while attempts < maxAttempts do
+        local result = workspace:Raycast(currentOrigin, remainingDir, params)
+        if not result then return true end
+        local hit = result.Instance
+        if not hit then return true end
+        if targetModel and (hit == targetModel or hit:IsDescendantOf(targetModel)) then
+            return true
+        end
+        if hit:IsA("BasePart") then
+            local transparentEnough = (hit.Transparency >= settings.visibility_tolerance)
+            local canCollide = hit.CanCollide
+            if transparentEnough or (canCollide == false) then
+                local unitRem = remainingDir.Unit
+                currentOrigin = result.Position + (unitRem * advanceOffset)
+                remainingDir = point - currentOrigin
+                if remainingDir.Magnitude <= 0 then return true end
+                attempts = attempts + 1
+            else
+                return false
+            end
+        else
+            local unitRem = remainingDir.Unit
+            currentOrigin = result.Position + (unitRem * advanceOffset)
+            remainingDir = point - currentOrigin
+            if remainingDir.Magnitude <= 0 then return true end
+            attempts = attempts + 1
+        end
     end
-    return hit.Transparency >= settings.visibility_tolerance or not hit.CanCollide
+    return false
 end
 
 local viewmodels_folder = workspace:FindFirstChild("Viewmodels")
@@ -82,10 +152,13 @@ local function find_closest()
 
     local best_dist = math.huge
     local best = {nil, nil, nil, nil}
+    local screen_mid = settings.screen_middle or screen_middle
+
+    hideAimIndicator()
 
     for _, pl in ipairs(cached_players) do
         if pl == players.LocalPlayer then continue end
-        local vm = viewmodels_folder and viewmodels_folder:FindFirstChild(pl.Name)
+        local vm = viewmodels_folder and (viewmodels_folder:FindFirstChild(pl.Name))
         if not vm or not vm:FindFirstChild("EnemyHighlight") then continue end
 
         for _, partName in ipairs(settings.hitbox_priority) do
@@ -96,11 +169,15 @@ local function find_closest()
             local point, onScreen = to_view_point(aimPos)
             if not onScreen then continue end
 
-            local screenDist = (point - screen_middle).Magnitude
-            if screenDist > fov_radius then continue end  -- FOV CHECK (NO Drawing!)
-
             local visibleCheck = is_visible(aimPos, vm)
+            if visibleCheck and point and point.X and point.Y then
+                showAimIndicator(point)
+            end
+
             if settings.visibility and not visibleCheck then continue end
+
+            local screenDist = (point - screen_mid).Magnitude
+            if circle and circle.Visible and screenDist > circle.Radius then continue end
 
             if screenDist < best_dist then
                 best_dist = screenDist
@@ -110,6 +187,7 @@ local function find_closest()
         end
     end
 
+    if not best[1] then hideAimIndicator() end
     target_cache = best
     return unpack(best)
 end
@@ -132,10 +210,11 @@ aimbot.init = function()
     on_esp_ran(function()
         local player, closest, screen_pos, aim_part = unpack(target_cache or {nil, nil, nil, nil})
         if not (player and closest and aim_part) then
+            hideAimIndicator()
             return
         end
 
-        if not user_input_service or user_input_service.MouseBehavior == Enum.MouseBehavior.Default
+        if user_input_service.MouseBehavior == Enum.MouseBehavior.Default
             or not get_useable()
             or not settings.enabled
             or settings.silent then
@@ -168,13 +247,15 @@ aimbot.init = function()
 
             local player, closest, screen_pos, aim_part = unpack(target_cache or {nil, nil, nil, nil})
             if player and closest and aim_part then
-                local screenDist = (screen_pos - screen_middle).Magnitude
-                if screenDist <= fov_radius then  
-                    local vis = is_visible(aim_part.Position, closest)
-                    if vis then
-                        debug.setstack(3, 6, CFrame.lookAt(debug.getstack(3, 3).Position, aim_part.Position))
-                    end
+                local vis = is_visible(aim_part.Position, closest)
+                if vis and screen_pos then
+                    pcall(function() showAimIndicator(screen_pos) end)
+                else
+                    hideAimIndicator()
                 end
+                debug.setstack(3, 6, CFrame.lookAt(debug.getstack(3, 3).Position, aim_part.Position))
+            else
+                hideAimIndicator()
             end
         end
         return old_cframe_new(...)
