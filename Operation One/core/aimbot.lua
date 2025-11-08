@@ -1,172 +1,228 @@
 local aimbot = {}
-
-local Players          = game:GetService("Players")
-local RunService       = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
-local Workspace        = game:GetService("Workspace")
-local camera           = cloneref(Workspace.CurrentCamera)
+local user_input_service
+local run_service
+local players
+local camera = cloneref(workspace.CurrentCamera)
+local start = 0
+local rot = Vector2.new()
 
 local settings = {
-    enabled            = false,
-    silent             = false,
-    smoothing          = 200,      
-    pressed            = "aiming",
-    visibility         = false,
+    enabled = false,
+    silent = false,
+    circle = Drawing.new("Circle"),
+    screen_middle = (camera and camera.ViewportSize and (camera.ViewportSize / 2)) or Vector2.new(0, 0),
+    smoothing = 200,
+    pressed = "aiming",
+    visibility = false,
     visibility_tolerance = 0,
-    circle             = nil,      
-    hitbox_priority    = { "head", "torso", "shoulder1", "shoulder2", "hip1", "hip2", "leg1", "leg2" },
-    hitbox_offset      = Vector3.new(0, 0, 0)
+    hitbox_priority = {
+        "leg2", "leg1", "hip2", "hip1", "shoulder2", "shoulder1", "torso", "head"
+    },
+    hitbox_offset = Vector3.new(0, 0, 0)
 }
-rawset(aimbot, "aimbot_settings", settings)
+local screen_middle = settings.screen_middle
+local circle = settings.circle
 
-local circle = Drawing.new("Circle")
-circle.Visible   = false
-circle.Radius    = 120
-circle.Filled    = false
-circle.Thickness = 1
-circle.Color     = Color3.new(1,1,1)
-
-local indicator = Drawing.new("Circle")
-indicator.Visible = false
-indicator.Radius  = 5
-indicator.Filled  = true
-indicator.Thickness = 1
-indicator.NumSides = 16
-indicator.Transparency = 1
-indicator.Color   = Color3.fromRGB(0,255,0)
-
-local viewmodelsFolder = Workspace:WaitForChild("Viewmodels", 5)
-local cachedPlayers    = {}
-local targetCache      = nil   
-local aimStart         = 0
-local rot              = Vector2.new()
-local screenCenter     = camera.ViewportSize / 2
-
-RunService.Heartbeat:Connect(function()
-    screenCenter = camera.ViewportSize / 2
-    circle.Position = screenCenter
+pcall(function()
+    circle.Visible = false
+    circle.Radius = 120
+    circle.Filled = false
+    circle.Thickness = 1
+    circle.Color = Color3.new(1, 1, 1)
+    circle.Position = screen_middle
 end)
 
-task.spawn(function()
-    while task.wait(0.5) do
-        cachedPlayers = Players:GetPlayers()
+local aim_indicator = nil
+pcall(function()
+    aim_indicator = Drawing.new("Circle")
+    aim_indicator.Visible = false
+    aim_indicator.Radius = 5
+    aim_indicator.Filled = true
+    aim_indicator.Thickness = 1
+    aim_indicator.NumSides = 16
+    aim_indicator.Transparency = 1
+    aim_indicator.Color = Color3.fromRGB(0, 255, 0)
+end)
+
+local function hideAimIndicator()
+    if aim_indicator then
+        pcall(function() aim_indicator.Visible = false end)
     end
-end)
+end
+
+local function showAimIndicator(posVec2)
+    if aim_indicator and posVec2 then
+        pcall(function()
+            aim_indicator.Position = posVec2
+            aim_indicator.Color = Color3.fromRGB(0, 255, 0)
+            aim_indicator.Visible = true
+        end)
+    end
+end
 
 local function get_useable()
-    if settings.pressed == "None"     then return true end
-    if settings.pressed == "shooting" then return UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) end
-    if settings.pressed == "aiming"   then return UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) end
-    if settings.pressed == "any"      then return UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) or UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) end
-    return false
+    return (
+        settings.pressed == "None" and true
+        or settings.pressed == "shooting" and user_input_service:IsMouseButtonPressed(Enum.UserInputType.MouseButton1)
+        or settings.pressed == "aiming" and user_input_service:IsMouseButtonPressed(Enum.UserInputType.MouseButton2)
+        or settings.pressed == "any" and (
+            user_input_service:IsMouseButtonPressed(Enum.UserInputType.MouseButton1)
+            or user_input_service:IsMouseButtonPressed(Enum.UserInputType.MouseButton2)
+        )
+    ) or false
 end
 
 local function is_visible(point, targetModel)
-    if not settings.visibility then return true end
+    if not camera or not camera.CFrame then return false end
     local origin = camera.CFrame.Position
-    local dir    = point - origin
-    if dir.Magnitude < 1 then return true end
+    local direction = point - origin
+    if direction.Magnitude <= 0 then return true end
 
     local params = RaycastParams.new()
+    local filters = {}
+    if players.LocalPlayer and players.LocalPlayer.Character then
+        table.insert(filters, players.LocalPlayer.Character)
+    end
     params.FilterType = Enum.RaycastFilterType.Blacklist
-    params.FilterDescendantsInstances = {Players.LocalPlayer.Character}
+    params.FilterDescendantsInstances = filters
 
-    local result = Workspace:Raycast(origin, dir, params)
+    local result = workspace:Raycast(origin, direction, params)
     if not result then return true end
     local hit = result.Instance
-    return hit and (hit == targetModel or hit:IsDescendantOf(targetModel))
+    if not hit then return true end
+    if targetModel and (hit == targetModel or hit:IsDescendantOf(targetModel)) then
+        return true
+    end
+    return hit.Transparency >= settings.visibility_tolerance or not hit.CanCollide
 end
 
+local viewmodels_folder = workspace:FindFirstChild("Viewmodels")
+local cached_players = {}
+local target_cache = nil
+local last_find = 0
 local FIND_RATE = 0.033  
-local lastFind  = 0
+
+task.spawn(function()
+    while task.wait(0.5) do
+        cached_players = players:GetPlayers()
+    end
+end)
 
 local function find_closest()
     local now = tick()
-    if now - lastFind < FIND_RATE then return targetCache end
-    lastFind = now
+    if now - last_find < FIND_RATE then
+        return unpack(target_cache or {nil, nil, nil, nil})
+    end
+    last_find = now
 
-    local bestDist = math.huge
-    local best = nil
+    local best_dist = math.huge
+    local best = {nil, nil, nil, nil}
 
-    for _, pl in ipairs(cachedPlayers) do
-        if pl == Players.LocalPlayer then continue end
-        local vm = viewmodelsFolder and viewmodelsFolder:FindFirstChild(pl.Name)
+    hideAimIndicator()
+
+    for _, pl in ipairs(cached_players) do
+        if pl == players.LocalPlayer then continue end
+        local vm = viewmodels_folder and (viewmodels_folder:FindFirstChild(pl.Name))
         if not vm or not vm:FindFirstChild("EnemyHighlight") then continue end
 
         for _, partName in ipairs(settings.hitbox_priority) do
             local part = vm:FindFirstChild(partName)
             if not part then continue end
 
-            local worldPos = part.Position + settings.hitbox_offset
-            local scr, onScreen = camera:WorldToViewportPoint(worldPos)
+            local aimPos = part.Position + settings.hitbox_offset
+            local point, onScreen = to_view_point(aimPos)
             if not onScreen then continue end
 
-            local screenPos = Vector2.new(scr.X, scr.Y)
-            local dist2D = (screenPos - screenCenter).Magnitude
+            local visibleCheck = is_visible(aimPos, vm)
+            if visibleCheck and point then
+                showAimIndicator(point)
+            end
 
-            if circle.Visible and dist2D > circle.Radius then continue end
-            if settings.visibility and not is_visible(worldPos, vm) then continue end
+            if settings.visibility and not visibleCheck then continue end
 
-            if dist2D < bestDist then
-                bestDist = dist2D
-                best = {
-                    player    = pl,
-                    vm        = vm,
-                    screenPos = screenPos,
-                    part      = part,
-                    worldPos  = worldPos
-                }
-                break   
+            local screenDist = (point - screen_middle).Magnitude
+            if circle.Visible and screenDist > circle.Radius then continue end
+
+            if screenDist < best_dist then
+                best_dist = screenDist
+                best = {pl, vm, point, part}
+                break 
             end
         end
     end
 
-    if best then
-        indicator.Position = best.screenPos
-        indicator.Visible  = true
-    else
-        indicator.Visible = false
-    end
-
-    targetCache = best
-    return best
+    if not best[1] then hideAimIndicator() end
+    target_cache = best
+    return unpack(best)
 end
 
-RunService.RenderStepped:Connect(function(dt)
-    if not settings.enabled or not get_useable() or settings.silent then
-        aimStart = 0
-        rot = Vector2.new()
-        return
-    end
+rawset(aimbot, "aimbot_settings", settings)
+aimbot.init = function()
+    user_input_service = get_service("UserInputService")
+    run_service = get_service("RunService")
+    players = get_service("Players")
 
-    local target = find_closest()
-    if not target or not target.part then return end
-
-    aimStart = aimStart + (dt * 1000)
-    local t = math.clamp(aimStart / settings.smoothing, 0, 1)
-    local eased = 1 - (1 - t) ^ 2
-
-    local lookCFrame = CFrame.lookAt(camera.CFrame.Position, target.part.Position, Vector3.new(0,1,0))
-    camera.CFrame = camera.CFrame:Lerp(lookCFrame, eased)
-
-    if t >= 1 then aimStart = 0 end
-end)
-
-local oldCFrameNew = clonefunction(CFrame.new)
-
-hookfunction(CFrame.new, function(pos, lookAt, up)
-    if not (settings.enabled and settings.silent and get_useable()) then
-        return oldCFrameNew(pos, lookAt, up)
-    end
-
-    local target = targetCache
-    if target and target.part then
-        if is_visible(target.part.Position, target.vm) then
-            return CFrame.lookAt(pos, target.part.Position, up or Vector3.new(0,1,0))
+    task.spawn(function()
+        while task.wait(FIND_RATE) do
+            if settings.enabled and get_useable() and not settings.silent then
+                find_closest()
+            end
         end
-    end
-    return oldCFrameNew(pos, lookAt, up)
-end)
+    end)
 
-aimbot.init = function() end  
+    on_esp_ran(function()
+        local player, closest, screen_pos, aim_part = unpack(target_cache or {nil, nil, nil, nil})
+        if not (player and closest and aim_part) then
+            hideAimIndicator()
+            return
+        end
+
+        if user_input_service.MouseBehavior == Enum.MouseBehavior.Default
+            or not get_useable()
+            or not settings.enabled
+            or settings.silent then
+            start = 0
+            rot = Vector2.new()
+            return
+        end
+
+        start = start + (run_service.RenderStepped:Wait() * 1000)
+        local lerp = math.clamp(start / settings.smoothing, 0, 1)
+        local base_cframe = camera.CFrame:Lerp(
+            CFrame.lookAt(camera.CFrame.Position, aim_part.Position, Vector3.new(0, 1, 0)),
+            (1 - (1 - lerp) ^ 2)
+        )
+        rot = rot + (user_input_service:GetMouseDelta() * 0.0005)
+        camera.CFrame = base_cframe * CFrame.Angles(0, -rot.X, 0) * CFrame.Angles(-rot.Y, 0, 0)
+
+        if lerp >= 1 then
+            start = 0
+            rot = Vector2.new()
+        end
+    end)
+
+    local old_cframe_new = clonefunction(CFrame.new)
+    hook_function(CFrame.new, function(...)
+        if debug.info(3, 'n') == "send_shoot"
+            and settings.enabled
+            and settings.silent
+            and get_useable() then
+
+            local player, closest, screen_pos, aim_part = unpack(target_cache or {nil, nil, nil, nil})
+            if player and closest and aim_part then
+                local vis = is_visible(aim_part.Position, closest)
+                if vis and screen_pos then
+                    pcall(function() showAimIndicator(screen_pos) end)
+                else
+                    hideAimIndicator()
+                end
+                debug.setstack(3, 6, CFrame.lookAt(debug.getstack(3, 3).Position, aim_part.Position))
+            else
+                hideAimIndicator()
+            end
+        end
+        return old_cframe_new(...)
+    end)
+end
+
 return aimbot
