@@ -1,228 +1,259 @@
-local player_esp = {}
-
-local has_esp = {}
-local esp_ran = {}
-local object_esp = {}
-local core_gui
-local players
+local aimbot = {}
+local user_input_service
 local run_service
+local players
 local camera = cloneref(workspace.CurrentCamera)
+local start = 0
+local rot = Vector2.new()
 
 local settings = {
-    health_bar = false,
-    skelton = false,
-    skelton_color = Color3.fromRGB(255, 255, 255),
-    show_claymores = false,
-    show_drones = false,
-    claymore_color = Color3.fromRGB(255, 0, 0),
-    drone_color = Color3.fromRGB(0, 255, 255),
+    enabled = false,
+    silent = false,
+    circle = Drawing.new("Circle"),
+    screen_middle = (camera.ViewportSize / 2),
+    smoothing = 200,
+    pressed = "aiming",
+
+    visibility = false,             
+    visibility_tolerance = 0,      
+
+    hitbox_priority = {
+        "head", "torso", "shoulder1", "shoulder2",
+        "arm1", "arm2", "hip1", "hip2", "leg1", "leg2"
+    },
+    hitbox_offset = Vector3.new(0, 0, 0)
 }
 
-rawset(player_esp, "set_player_esp", newcclosure(function(character: Model)
-    task.wait(0.5)
-    if not (character:IsA("Model") and character:FindFirstChild("EnemyHighlight")) or has_esp[character] then return end
+local screen_middle = settings.screen_middle
 
-    local name = character.Name:gsub("Viewmodels/", "")
-    local humanoid = players[name] and players[name].Character and players[name].Character:FindFirstChildOfClass("Humanoid")
-    local torso = character:FindFirstChild("torso")
+local circle = settings.circle
+pcall(function()
+    circle.Visible = false
+    circle.Radius = 120
+    circle.Filled = false
+    circle.Thickness = 1
+    circle.Color = Color3.new(1, 1, 1)
+    circle.Position = screen_middle
+end)
 
-    if not humanoid or not torso then return end
+local aim_indicator = nil
+pcall(function()
+    aim_indicator = Drawing.new("Circle")
+    aim_indicator.Visible = false
+    aim_indicator.Radius = 5
+    aim_indicator.Filled = true
+    aim_indicator.Thickness = 1
+    aim_indicator.NumSides = 16
+    aim_indicator.Transparency = 1
+    aim_indicator.Color = Color3.fromRGB(0, 255, 0)
+end)
 
-    has_esp[character] = { name = name, humanoid = humanoid, self = character }
-
-    local health_bar_inner = Drawing.new("Square")
-    health_bar_inner.Visible = false
-    health_bar_inner.Thickness = 0
-    health_bar_inner.Filled = true
-    health_bar_inner.ZIndex = 5
-
-    local health_bar_outer = Drawing.new("Square")
-    health_bar_outer.Visible = false
-    health_bar_outer.Color = Color3.new(0.152941, 0.152941, 0.152941)
-    health_bar_outer.Transparency = 0.6
-    health_bar_outer.Thickness = 0
-    health_bar_outer.Filled = true
-    health_bar_outer.ZIndex = 1
-
-    local skeleton = Instance.new("WireframeHandleAdornment", core_gui)
-    skeleton.Color3 = Color3.new(1, 1, 1)
-    skeleton.Visible = true
-    skeleton.AlwaysOnTop = true
-    skeleton.Adornee = workspace
-    skeleton.Thickness = 1
-    skeleton.ZIndex = 5
-
-    local c1, c2
-    c1 = run_service.RenderStepped:Connect(function()
-        local point, on = camera:WorldToViewportPoint(torso.Position)
-        if on then
-            for _, v in next, esp_ran do
-                v(has_esp[character], point)
-            end
-
-            local cf_mid, size = character:GetBoundingBox()
-            local bottom_right = camera:WorldToViewportPoint((cf_mid.Position + Vector3.new(-size.X/2, -size.Y/2, 0)))
-            local bottom_left = camera:WorldToViewportPoint((cf_mid.Position + Vector3.new(size.X/2, -size.Y/2, 0)))
-            local head_offset = (character.head.CFrame * -Vector3.new(0, (character.head.Size.Y / 2), 0))
-
-            if settings.health_bar then
-                health_bar_inner.Visible = true
-                health_bar_outer.Visible = true
-
-                local health = math.clamp((humanoid.Health / humanoid.MaxHealth), 0, 1)
-                health_bar_outer.Size = Vector2.new(bottom_left.X - bottom_right.X, 3)
-                health_bar_outer.Position = Vector2.new(bottom_right.X, bottom_left.Y)
-                health_bar_inner.Size = Vector2.new(((bottom_left.X - bottom_right.X) + 2) * health, 1)
-                health_bar_inner.Position = Vector2.new(health_bar_outer.Position.X - 1, bottom_left.Y + 1)
-                health_bar_inner.Color = Color3.new(1, 0, 0):Lerp(Color3.new(0, 1, 0), health)
-            else
-                health_bar_inner.Visible = false
-                health_bar_outer.Visible = false
-            end
-
-            if settings.skelton then
-                skeleton:Clear()
-                skeleton.Color3 = settings.skelton_color
-                skeleton:AddLines({
-                    character.head.Position, character.torso.Position, head_offset,
-                    character.shoulder2.Position, character.shoulder2.Position, character.arm2.Position,
-                    head_offset, character.shoulder1.Position, character.shoulder1.Position, character.arm1.Position,
-                    character.torso.Position, character.hip2.Position, character.hip2.Position, character.leg2.Position,
-                    character.torso.Position, character.hip1.Position, character.hip1.Position, character.leg1.Position
-                })
-            else
-                skeleton:Clear()
-            end
-        else
-            skeleton:Clear()
-            health_bar_inner.Visible = false
-            health_bar_outer.Visible = false
-        end
-    end)
-
-    c2 = character.AncestryChanged:Connect(function(_, parent)
-        if parent ~= nil then return end
-        c1:Disconnect()
-        has_esp[character] = nil
-        health_bar_inner:Remove()
-        health_bar_outer:Remove()
-        skeleton:Destroy()
-        c2:Disconnect()
-    end)
-end))
-
-local function add_object_esp(obj: Instance, color: Color3)
-    if object_esp[obj] then return end
-
-    local box = Drawing.new("Square")
-    box.Thickness = 1
-    box.Color = color
-    box.Filled = false
-    box.Visible = false
-    box.ZIndex = 5
-
-    local conn
-    conn = run_service.RenderStepped:Connect(function()
-        if not obj or not obj:IsDescendantOf(workspace) then
-            box:Remove()
-            object_esp[obj] = nil
-            conn:Disconnect()
-            return
-        end
-
-        if (obj.Name == "Claymore" and not settings.show_claymores)
-        or (obj.Name == "Drone" and not settings.show_drones) then
-            box.Visible = false
-            return
-        end
-
-        local cf, size = obj:GetBoundingBox()
-        local corners = {
-            cf * Vector3.new(-size.X/2, -size.Y/2, -size.Z/2),
-            cf * Vector3.new(-size.X/2, -size.Y/2,  size.Z/2),
-            cf * Vector3.new(-size.X/2,  size.Y/2, -size.Z/2),
-            cf * Vector3.new(-size.X/2,  size.Y/2,  size.Z/2),
-            cf * Vector3.new( size.X/2, -size.Y/2, -size.Z/2),
-            cf * Vector3.new( size.X/2, -size.Y/2,  size.Z/2),
-            cf * Vector3.new( size.X/2,  size.Y/2, -size.Z/2),
-            cf * Vector3.new( size.X/2,  size.Y/2,  size.Z/2),
-        }
-
-        local minX, minY = math.huge, math.huge
-        local maxX, maxY = -math.huge, -math.huge
-        local visible = false
-
-        for _, corner in ipairs(corners) do
-            local screenPos, onScreen = camera:WorldToViewportPoint(corner)
-            if onScreen then
-                visible = true
-                minX = math.min(minX, screenPos.X)
-                minY = math.min(minY, screenPos.Y)
-                maxX = math.max(maxX, screenPos.X)
-                maxY = math.max(maxY, screenPos.Y)
-            end
-        end
-
-        if not visible then
-            box.Visible = false
-            return
-        end
-
-        if obj.Name == "Claymore" then
-            box.Color = settings.claymore_color
-        elseif obj.Name == "Drone" then
-            box.Color = settings.drone_color
-        end
-
-        box.Position = Vector2.new(minX, minY)
-        box.Size = Vector2.new(maxX - minX, maxY - minY)
-        box.Visible = true
-    end)
-
-    object_esp[obj] = { box = box, conn = conn }
+local function hideAimIndicator()
+    if not aim_indicator then return end
+    pcall(function() aim_indicator.Visible = false end)
 end
 
-local function track_objects()
-    for _, obj in ipairs(workspace:GetChildren()) do
-        if (obj.Name == "Claymore" and settings.show_claymores)
-        or (obj.Name == "Drone" and settings.show_drones) then
-            add_object_esp(obj, (obj.Name == "Claymore") and settings.claymore_color or settings.drone_color)
+local function showAimIndicator(posVec2)
+    if not aim_indicator then return end
+    pcall(function()
+        aim_indicator.Position = posVec2
+        aim_indicator.Color = Color3.fromRGB(0, 255, 0)
+        aim_indicator.Visible = true
+    end)
+end
+
+local function get_useable()
+    return (
+        settings.pressed == "None" and true
+        or settings.pressed == "shooting" and user_input_service:IsMouseButtonPressed(Enum.UserInputType.MouseButton1)
+        or settings.pressed == "aiming" and user_input_service:IsMouseButtonPressed(Enum.UserInputType.MouseButton2)
+        or settings.pressed == "any" and (
+            user_input_service:IsMouseButtonPressed(Enum.UserInputType.MouseButton1)
+            or user_input_service:IsMouseButtonPressed(Enum.UserInputType.MouseButton2)
+        )
+    ) or false
+end
+
+local function is_visible(point, targetModel)
+    if not camera or not camera.CFrame then return false end
+
+    local origin = camera.CFrame.Position
+    local direction = (point - origin)
+    local distance = direction.Magnitude
+    if distance <= 0 then return true end
+
+    local params = RaycastParams.new()
+    params.FilterType = Enum.RaycastFilterType.Blacklist
+    params.FilterDescendantsInstances = {}
+
+    if players and players.LocalPlayer and players.LocalPlayer.Character then
+        table.insert(params.FilterDescendantsInstances, players.LocalPlayer.Character)
+    end
+
+    local currentOrigin = origin
+    local remaining = direction.Unit * distance
+    local attempts = 0
+    local maxAttempts = 6
+    local eps = 0.05
+
+    while attempts < maxAttempts do
+        local result = workspace:Raycast(currentOrigin, remaining, params)
+        if not result then
+            return true
+        end
+
+        local hit = result.Instance
+        if not hit then
+            return true
+        end
+
+        if targetModel and (hit == targetModel or hit:IsDescendantOf(targetModel)) then
+            return true
+        end
+
+        local skipHit = false
+        if not hit.CanCollide then
+            skipHit = true
+        elseif hit.Transparency > settings.visibility_tolerance then
+            skipHit = true
+        end
+
+        if skipHit then
+            local hitPos = result.Position
+            currentOrigin = hitPos + remaining.Unit * eps
+            remaining = (point - currentOrigin)
+            if remaining.Magnitude <= 0.01 then return true end
+            attempts += 1
+        else
+            return false
         end
     end
 
-    workspace.ChildAdded:Connect(function(obj)
-        if (obj.Name == "Claymore" and settings.show_claymores)
-        or (obj.Name == "Drone" and settings.show_drones) then
-            add_object_esp(obj, (obj.Name == "Claymore") and settings.claymore_color or settings.drone_color)
+    return false
+end
+
+-- ====== Find closest visible target ======
+local function find_closest()
+    local PlayerAmt = players:GetPlayers()
+    local ClosestPlayer, ClosestViewmodel, ClosestScreenPos, ClosestPart
+    local BestDistance = math.huge
+    local screen_mid = settings.screen_middle or screen_middle
+    local viewmodels_folder = workspace:FindFirstChild("Viewmodels")
+
+    hideAimIndicator()
+
+    for _, pl in ipairs(PlayerAmt) do
+        if pl == players.LocalPlayer then continue end
+
+        local vm
+        if viewmodels_folder then
+            vm = viewmodels_folder:FindFirstChild(pl.Name)
+                or viewmodels_folder:FindFirstChild("Viewmodels/" .. pl.Name)
         end
+        if not vm or not vm:FindFirstChild("EnemyHighlight") then continue end
+
+        for _, partName in ipairs(settings.hitbox_priority) do
+            local part = vm:FindFirstChild(partName)
+            if not part then continue end
+
+            local aimPos = part.Position + settings.hitbox_offset
+            local point, onScreen = to_view_point(aimPos)
+            if not onScreen then continue end
+
+            local visibleCheck = is_visible(aimPos, vm)
+
+            if visibleCheck and point and point.X and point.Y then
+                showAimIndicator(point)
+            end
+
+            if settings.visibility and not visibleCheck then
+                continue
+            end
+
+            local screenDist = (point - screen_mid).Magnitude
+            if settings.circle and settings.circle.Visible and screenDist > settings.circle.Radius then
+                continue
+            end
+
+            if screenDist < BestDistance then
+                BestDistance = screenDist
+                ClosestPlayer = pl
+                ClosestViewmodel = vm
+                ClosestScreenPos = point
+                ClosestPart = part
+            end
+        end
+    end
+
+    if not ClosestPlayer then
+        hideAimIndicator()
+    end
+
+    return ClosestPlayer, ClosestViewmodel, ClosestScreenPos, ClosestPart
+end
+
+rawset(aimbot, "aimbot_settings", settings)
+
+aimbot.init = function()
+    user_input_service = get_service("UserInputService")
+    run_service = get_service("RunService")
+    players = get_service("Players")
+
+    on_esp_ran(function()
+        local player, closest, screen_pos, aim_part = find_closest()
+        if not (player and closest and aim_part) then return end
+
+        if is_visible(aim_part.Position, closest) and screen_pos then
+            showAimIndicator(screen_pos)
+        else
+            hideAimIndicator()
+        end
+
+        if user_input_service.MouseBehavior == Enum.MouseBehavior.Default
+            or not get_useable()
+            or not settings.enabled
+            or settings.silent then
+            start = 0
+            rot = Vector2.new()
+            return
+        end
+
+        start += (run_service.RenderStepped:Wait() * 1000)
+        local lerp = math.clamp(start / settings.smoothing, 0, 1)
+        local base_cframe = camera.CFrame:Lerp(
+            CFrame.lookAt(camera.CFrame.Position, aim_part.Position, Vector3.new(0, 1, 0)),
+            (1 - (1 - lerp) ^ 2)
+        )
+        rot += (user_input_service:GetMouseDelta() * 0.0005)
+        camera.CFrame = base_cframe * CFrame.Angles(0, -rot.X, 0) * CFrame.Angles(-rot.Y, 0, 0)
+
+        if lerp >= 1 then
+            start = 0
+            rot = Vector2.new()
+            return
+        end
+    end)
+
+    local old_cframe_new = clonefunction(CFrame.new)
+    hook_function(CFrame.new, function(...)
+        if debug.info(3, 'n') == "send_shoot"
+            and settings.enabled
+            and settings.silent
+            and get_useable() then
+            local player, closest, screen_pos, aim_part = find_closest()
+            if player and closest and aim_part then
+                if is_visible(aim_part.Position, closest) and screen_pos then
+                    pcall(function() showAimIndicator(screen_pos) end)
+                else
+                    hideAimIndicator()
+                end
+                debug.setstack(3, 6, CFrame.lookAt(debug.getstack(3, 3).Position, aim_part.Position))
+            else
+                hideAimIndicator()
+            end
+        end
+        return old_cframe_new(...)
     end)
 end
 
-rawset(player_esp, "on_esp_ran", newcclosure(function(func)
-    table.insert(esp_ran, func)
-    return {
-        remove = function()
-            for i, v in next, esp_ran do
-                if v == func then
-                    esp_ran[i] = nil
-                    break
-                end
-            end
-        end
-    }
-end))
-
-rawset(player_esp, "get_player_from_has_esp", newcclosure(function(character)
-    return has_esp[character]
-end))
-
-rawset(player_esp, "esp_player_settings", settings)
-
-player_esp.init = function()
-    players = get_service("Players")
-    run_service = get_service("RunService")
-    core_gui = get_service("CoreGui")
-    track_objects()
-end
-
-return player_esp
+return aimbot
