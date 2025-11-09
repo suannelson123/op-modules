@@ -14,8 +14,8 @@ local settings = {
     smoothing = 200,
     pressed = "aiming",
 
-    visibility = false,               
-    visibility_tolerance = 0,    
+    visibility = false,              
+    visibility_tolerance = 0,      
 
     hitbox_priority = {
         "head", "torso", "shoulder1", "shoulder2",
@@ -36,7 +36,7 @@ pcall(function()
     circle.Position = screen_middle
 end)
 
-local aim_indicator
+local aim_indicator = nil
 pcall(function()
     aim_indicator = Drawing.new("Circle")
     aim_indicator.Visible = false
@@ -98,10 +98,14 @@ local function is_visible(point, targetModel)
 
     while attempts < maxAttempts do
         local result = workspace:Raycast(currentOrigin, remaining, params)
-        if not result then return true end
+        if not result then
+            return true
+        end
 
         local hit = result.Instance
-        if not hit then return true end
+        if not hit then
+            return true
+        end
 
         if targetModel and (hit == targetModel or hit:IsDescendantOf(targetModel)) then
             return true
@@ -161,7 +165,9 @@ local function find_closest()
                 showAimIndicator(point)
             end
 
-            if settings.visibility and not visibleCheck then continue end
+            if settings.visibility and not visibleCheck then
+                continue
+            end
 
             local screenDist = (point - screen_mid).Magnitude
             if settings.circle and settings.circle.Visible and screenDist > settings.circle.Radius then
@@ -178,7 +184,10 @@ local function find_closest()
         end
     end
 
-    if not ClosestPlayer then hideAimIndicator() end
+    if not ClosestPlayer then
+        hideAimIndicator()
+    end
+
     return ClosestPlayer, ClosestViewmodel, ClosestScreenPos, ClosestPart
 end
 
