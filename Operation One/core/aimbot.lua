@@ -10,11 +10,12 @@ local settings = {
     enabled = false,
     silent = false,
     circle = Drawing.new("Circle"),
-    screen_middle = Vector2.new(0, 0),
+    screen_middle = (camera.ViewportSize / 2),
     smoothing = 200,
     pressed = "aiming",
+
     visibility = false,
-    visibility_tolerance = 0,
+    visibility_tolerance = 0.8,
 
     hitbox_priority = {
         "head", "torso", "shoulder1", "shoulder2",
@@ -23,12 +24,26 @@ local settings = {
     hitbox_offset = Vector3.new(0, 0, 0)
 }
 
+local screen_middle = settings.screen_middle
+local viewmodels_folder = workspace:FindFirstChild("Viewmodels")
+
 local circle = settings.circle
 circle.Visible = false
 circle.Radius = 120
 circle.Filled = false
 circle.Thickness = 1
 circle.Color = Color3.new(1, 1, 1)
+circle.Position = screen_middle
+
+local last_viewport = camera.ViewportSize
+run_service.RenderStepped:Connect(function()
+    local new_size = camera.ViewportSize
+    if new_size ~= last_viewport then
+        screen_middle = new_size / 2
+        circle.Position = screen_middle
+        last_viewport = new_size
+    end
+end)
 
 local aim_indicator = Drawing.new("Circle")
 aim_indicator.Visible = false
@@ -39,63 +54,47 @@ aim_indicator.NumSides = 16
 aim_indicator.Transparency = 1
 aim_indicator.Color = Color3.fromRGB(0, 255, 0)
 
-local hideAimIndicator = function()
-    if aim_indicator.Visible then
-        aim_indicator.Visible = false
-    end
+local function hideAimIndicator()
+    aim_indicator.Visible = false
 end
 
-local showAimIndicator = function(posVec2)
+local function showAimIndicator(posVec2)
     aim_indicator.Position = posVec2
     aim_indicator.Visible = true
 end
 
 local function get_useable()
-    local pressed = settings.pressed
-    if pressed == "None" then return true end
-    if pressed == "shooting" then
-        return user_input_service:IsMouseButtonPressed(Enum.UserInputType.MouseButton1)
-    elseif pressed == "aiming" then
-        return user_input_service:IsMouseButtonPressed(Enum.UserInputType.MouseButton2)
-    elseif pressed == "any" then
-        return user_input_service:IsMouseButtonPressed(Enum.UserInputType.MouseButton1)
+    return (
+        settings.pressed == "None" and true
+        or settings.pressed == "shooting" and user_input_service:IsMouseButtonPressed(Enum.UserInputType.MouseButton1)
+        or settings.pressed == "aiming" and user_input_service:IsMouseButtonPressed(Enum.UserInputType.MouseButton2)
+        or settings.pressed == "any" and (
+            user_input_service:IsMouseButtonPressed(Enum.UserInputType.MouseButton1)
             or user_input_service:IsMouseButtonPressed(Enum.UserInputType.MouseButton2)
-    end
-    return false
+        )
+    ) or false
 end
-
-local function update_screen_middle()
-    local viewport = camera.ViewportSize
-    local new_middle = viewport / 2
-    if new_middle ~= settings.screen_middle then
-        settings.screen_middle = new_middle
-        circle.Position = new_middle
-    end
-end
-
-local ray_params = RaycastParams.new()
-ray_params.FilterType = Enum.RaycastFilterType.Blacklist
-local filters = {}
 
 local function is_visible(point, targetModel)
-    if not camera then return false end
+    if not camera or not camera.CFrame then return false end
+
     local origin = camera.CFrame.Position
-    local direction = point - origin
+    local direction = (point - origin)
     if direction.Magnitude <= 0 then return true end
 
-    table.clear(filters)
-    local localChar = players.LocalPlayer and players.LocalPlayer.Character
-    if localChar then table.insert(filters, localChar) end
+    local params = RaycastParams.new()
+    local filters = {}
+    local local_char = players.LocalPlayer and players.LocalPlayer.Character
+    if local_char then table.insert(filters, local_char) end
 
-    local vmFolder = workspace:FindFirstChild("Viewmodels")
-    if vmFolder then
-        local localVm = vmFolder:FindFirstChild("Viewmodels/" .. (players.LocalPlayer and players.LocalPlayer.Name or ""))
-        if localVm then table.insert(filters, localVm) end
-    end
+    -- also ignore local player viewmodel
+    local local_vm = viewmodels_folder and viewmodels_folder:FindFirstChild("Viewmodels/" .. players.LocalPlayer.Name)
+    if local_vm then table.insert(filters, local_vm) end
 
-    ray_params.FilterDescendantsInstances = filters
+    params.FilterType = Enum.RaycastFilterType.Blacklist
+    params.FilterDescendantsInstances = filters
 
-    local result = workspace:Raycast(origin, direction, ray_params)
+    local result = workspace:Raycast(origin, direction, params)
     if not result then return true end
 
     local hit = result.Instance
@@ -111,45 +110,46 @@ local function is_visible(point, targetModel)
     return false
 end
 
-local function to_screen_point(pos)
-    local screenPos, onScreen = camera:WorldToViewportPoint(pos)
-    return Vector2.new(screenPos.X, screenPos.Y), onScreen
-end
-
 local function find_closest()
-    local playerList = players:GetPlayers()
-    local bestPart, bestPlayer, bestViewmodel, bestScreenPos
-    local bestDist = math.huge
-    local screen_mid = settings.screen_middle
-    local viewmodels_folder = workspace:FindFirstChild("Viewmodels")
+    local all_players = players:GetPlayers()
+    local closest_player, closest_vm, closest_screen_pos, closest_part
+    local best_distance = math.huge
+    local screen_mid = screen_middle
+    local vm_folder = viewmodels_folder
 
-    for i = 1, #playerList do
-        local pl = playerList[i]
+    for _, pl in ipairs(all_players) do
         if pl == players.LocalPlayer then continue end
 
-        local vm = viewmodels_folder and (viewmodels_folder:FindFirstChild(pl.Name)
-            or viewmodels_folder:FindFirstChild("Viewmodels/" .. pl.Name))
-        if not (vm and vm:FindFirstChild("EnemyHighlight")) then continue end
+        local vm = vm_folder and vm_folder:FindFirstChild(pl.Name)
+        if not vm then continue end
 
-        for j = 1, #settings.hitbox_priority do
-            local part = vm:FindFirstChild(settings.hitbox_priority[j])
+        local enemy_highlight = vm:FindFirstChild("EnemyHighlight")
+        if not enemy_highlight or not enemy_highlight.Enabled then continue end
+
+        for _, partName in ipairs(settings.hitbox_priority) do
+            local part = vm:FindFirstChild(partName)
             if not part then continue end
 
             local aimPos = part.Position + settings.hitbox_offset
-            local point, onScreen = to_screen_point(aimPos)
+            local point, onScreen = to_view_point(aimPos)
             if not onScreen then continue end
 
-            local dist = (point - screen_mid).Magnitude
-            if circle.Visible and dist > circle.Radius then continue end
-            if dist < bestDist then
-                bestDist = dist
-                bestPlayer, bestViewmodel, bestScreenPos, bestPart =
-                    pl, vm, point, part
+            local screenDist = (point - screen_mid).Magnitude
+            if circle.Visible and screenDist > circle.Radius then
+                continue
+            end
+
+            if screenDist < best_distance then
+                best_distance = screenDist
+                closest_player = pl
+                closest_vm = vm
+                closest_screen_pos = point
+                closest_part = part
             end
         end
     end
 
-    return bestPlayer, bestViewmodel, bestScreenPos, bestPart
+    return closest_player, closest_vm, closest_screen_pos, closest_part
 end
 
 rawset(aimbot, "aimbot_settings", settings)
@@ -159,26 +159,15 @@ aimbot.init = function()
     run_service = get_service("RunService")
     players = get_service("Players")
 
-    run_service.RenderStepped:Connect(update_screen_middle)
-
     on_esp_ran(function()
-        if not settings.enabled then
+        local player, closest, screen_pos, aim_part = find_closest()
+        if not (player and closest and aim_part) then
             hideAimIndicator()
             return
         end
 
-        local player, viewmodel, screen_pos, part = find_closest()
-        if not (player and viewmodel and part) then
-            hideAimIndicator()
-            return
-        end
-
-        local visible = true
-        if settings.visibility then
-            visible = is_visible(part.Position, viewmodel)
-        end
-
-        if visible then
+        local isVisible = not settings.visibility or is_visible(aim_part.Position, closest)
+        if isVisible and screen_pos then
             showAimIndicator(screen_pos)
         else
             hideAimIndicator()
@@ -186,6 +175,7 @@ aimbot.init = function()
 
         if user_input_service.MouseBehavior == Enum.MouseBehavior.Default
             or not get_useable()
+            or not settings.enabled
             or settings.silent then
             start = 0
             rot = Vector2.new()
@@ -194,9 +184,12 @@ aimbot.init = function()
 
         start += (run_service.RenderStepped:Wait() * 1000)
         local lerp = math.clamp(start / settings.smoothing, 0, 1)
-        local targetCFrame = CFrame.lookAt(camera.CFrame.Position, part.Position)
-        camera.CFrame = camera.CFrame:Lerp(targetCFrame, (1 - (1 - lerp)^2))
-            * CFrame.Angles(-rot.Y, -rot.X, 0)
+        local base_cframe = camera.CFrame:Lerp(
+            CFrame.lookAt(camera.CFrame.Position, aim_part.Position, Vector3.new(0, 1, 0)),
+            (1 - (1 - lerp) ^ 2)
+        )
+        rot += (user_input_service:GetMouseDelta() * 0.0005)
+        camera.CFrame = base_cframe * CFrame.Angles(0, -rot.X, 0) * CFrame.Angles(-rot.Y, 0, 0)
 
         if lerp >= 1 then
             start = 0
@@ -211,12 +204,12 @@ aimbot.init = function()
             and settings.silent
             and get_useable() then
 
-            local player, viewmodel, screen_pos, part = find_closest()
-            if player and viewmodel and part then
-                local visible = not settings.visibility or is_visible(part.Position, viewmodel)
-                if visible then
+            local player, closest, screen_pos, aim_part = find_closest()
+            if player and closest and aim_part then
+                local isVisible = not settings.visibility or is_visible(aim_part.Position, closest)
+                if isVisible and screen_pos then
                     showAimIndicator(screen_pos)
-                    debug.setstack(3, 6, CFrame.lookAt(debug.getstack(3, 3).Position, part.Position))
+                    debug.setstack(3, 6, CFrame.lookAt(debug.getstack(3, 3).Position, aim_part.Position))
                 else
                     hideAimIndicator()
                 end
