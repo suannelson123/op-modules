@@ -34,7 +34,6 @@ pcall(function()
     circle.Position = screen_middle
 end)
 
--- Aim indicator
 local aim_indicator = nil
 pcall(function()
     aim_indicator = Drawing.new("Circle")
@@ -113,7 +112,7 @@ local function is_visible(point, targetModel)
     local currentOrigin = origin
     local remaining = direction.Unit * distance
     local attempts = 0
-    local maxAttempts = 15
+    local maxAttempts = 2
     local eps = 0.05
 
     while attempts < maxAttempts do
