@@ -15,7 +15,7 @@ local settings = {
     pressed = "aiming",
 
     visibility = false,               
-    visibility_tolerance = 0.8,      
+    visibility_tolerance = 0.8,     
 
     hitbox_priority = {
         "head", "torso", "shoulder1", "shoulder2",
@@ -83,26 +83,31 @@ local function is_visible(point, targetModel)
 
     local params = RaycastParams.new()
     local filters = {}
+
     if players and players.LocalPlayer and players.LocalPlayer.Character then
         table.insert(filters, players.LocalPlayer.Character)
     end
+
+    local vmFolder = workspace:FindFirstChild("Viewmodels")
+    if vmFolder then
+        local localVm = vmFolder:FindFirstChild("Viewmodels/" .. players.LocalPlayer.Name)
+        if localVm then
+            table.insert(filters, localVm)
+        end
+    end
+
     params.FilterType = Enum.RaycastFilterType.Blacklist
     params.FilterDescendantsInstances = filters
 
     local result = workspace:Raycast(origin, direction, params)
-    if not result then
-        return true 
-    end
+    if not result then return true end
 
     local hit = result.Instance
     if not hit then return true end
-
     if targetModel and (hit == targetModel or hit:IsDescendantOf(targetModel)) then
         return true
     end
-
-    local isTransparentEnough = (hit.Transparency >= settings.visibility_tolerance)
-    if isTransparentEnough or not hit.CanCollide then
+    if (hit.Transparency >= settings.visibility_tolerance) or not hit.CanCollide then
         return true
     end
 
@@ -128,7 +133,7 @@ local function find_closest()
 
         for _, partName in ipairs(settings.hitbox_priority) do
             local part = vm:FindFirstChild(partName)
-            if not part or not part:IsA("BasePart") then continue end
+            if not part then continue end
 
             local aimPos = part.Position + settings.hitbox_offset
             local point, onScreen = to_view_point(aimPos)
