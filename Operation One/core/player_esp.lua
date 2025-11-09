@@ -18,16 +18,14 @@ local settings = {
     drone_color = Color3.fromRGB(0, 255, 255),
 }
 
-
-
-
 rawset(player_esp, "set_player_esp", newcclosure(function(character: Model)
     task.wait(0.5)
     if not (character:IsA("Model") and character:FindFirstChild("EnemyHighlight")) or has_esp[character] then return end
 
     local name = character.Name:gsub("Viewmodels/", "")
-    local humanoid = players[name].Character:FindFirstChildOfClass("Humanoid")
+    local humanoid = players[name] and players[name].Character and players[name].Character:FindFirstChildOfClass("Humanoid")
     local torso = character:FindFirstChild("torso")
+    if not torso then return end
 
     local c1, c2
     has_esp[character] = {
@@ -70,7 +68,7 @@ rawset(player_esp, "set_player_esp", newcclosure(function(character: Model)
             local bottom_left = to_view_point((CFrame.new(cf_mid.Position, camera.CFrame.Position) * CFrame.new(size.X / 2, -size.Y / 2, 0)).Position)
             local head_offset = (character.head.CFrame * -Vector3.new(0, (character.head.Size.Y / 2), 0))
 
-            if settings.health_bar then
+            if settings.health_bar and humanoid then
                 health_bar_inner.Visible = true
                 health_bar_outer.Visible = true
 
@@ -115,7 +113,6 @@ rawset(player_esp, "set_player_esp", newcclosure(function(character: Model)
         c2:Disconnect()
     end)
 end))
-
 
 local function add_object_esp(obj: Instance, color: Color3)
     if object_esp[obj] then return end
@@ -185,27 +182,23 @@ local function add_object_esp(obj: Instance, color: Color3)
     object_esp[obj] = { box = box, conn = conn }
 end
 
-
-
-
 local function track_objects()
     for _, obj in ipairs(workspace:GetChildren()) do
         if settings.show_claymores and obj.Name == "Claymore" then
-            add_object_esp(obj, Color3.fromRGB(255, 0, 0))
+            add_object_esp(obj, settings.claymore_color)
         elseif settings.show_drones and obj.Name == "Drone" then
-            add_object_esp(obj, Color3.fromRGB(0, 255, 255))
+            add_object_esp(obj, settings.drone_color)
         end
     end
 
     workspace.ChildAdded:Connect(function(obj)
         if settings.show_claymores and obj.Name == "Claymore" then
-            add_object_esp(obj, Color3.fromRGB(255, 0, 0))
+            add_object_esp(obj, settings.claymore_color)
         elseif settings.show_drones and obj.Name == "Drone" then
-            add_object_esp(obj, Color3.fromRGB(0, 255, 255))
+            add_object_esp(obj, settings.drone_color)
         end
     end)
 end
-
 
 rawset(player_esp, "on_esp_ran", newcclosure(function(func)
     table.insert(esp_ran, func)
