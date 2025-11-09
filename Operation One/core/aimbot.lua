@@ -87,7 +87,6 @@ local function is_visible(point, targetModel)
     local local_char = players.LocalPlayer and players.LocalPlayer.Character
     if local_char then table.insert(filters, local_char) end
 
-    -- also ignore local player viewmodel
     local local_vm = viewmodels_folder and viewmodels_folder:FindFirstChild("Viewmodels/" .. players.LocalPlayer.Name)
     if local_vm then table.insert(filters, local_vm) end
 
