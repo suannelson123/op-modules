@@ -14,8 +14,8 @@ local settings = {
     smoothing = 200,
     pressed = "aiming",
 
-    visibility = false,            
-    visibility_tolerance = 0,       
+    visibility = false,              
+    visibility_tolerance = 0.2,      
 
     hitbox_priority = {             
         "head", "torso", "shoulder1", "shoulder2",
@@ -70,23 +70,13 @@ local function get_useable()
     ) or false
 end
 
-local Workspace = workspace
-local Vector2_new = Vector2.new
-local Vector3_new = Vector3.new
-local math_huge = math.huge
-local ipairs_ref = ipairs 
-local to_view_point 
-
 local function update_screen_middle()
-    if camera and camera.ViewportSize and circle then
+    if camera and camera.ViewportSize then
         settings.screen_middle = camera.ViewportSize / 2
         circle.Position = settings.screen_middle
-    elseif camera and camera.ViewportSize then
-        settings.screen_middle = camera.ViewportSize / 2
     end
 end
 
-local _filters = {} 
 local function is_visible(point, targetModel)
     if not camera or not camera.CFrame then return false end
 
@@ -96,22 +86,21 @@ local function is_visible(point, targetModel)
 
     local params = RaycastParams.new()
     params.FilterType = Enum.RaycastFilterType.Blacklist
-
-    for i = #_filters, 1, -1 do _filters[i] = nil end
+    local filters = {}
 
     if players and players.LocalPlayer and players.LocalPlayer.Character then
-        _filters[#_filters + 1] = players.LocalPlayer.Character
+        table.insert(filters, players.LocalPlayer.Character)
     end
 
-    local vmFolder = Workspace:FindFirstChild("Viewmodels")
+    local vmFolder = workspace:FindFirstChild("Viewmodels")
     if vmFolder then
         local localVm = vmFolder:FindFirstChild("Viewmodels/" .. (players.LocalPlayer and players.LocalPlayer.Name or ""))
-        if localVm then _filters[#_filters + 1] = localVm end
+        if localVm then table.insert(filters, localVm) end
     end
 
-    params.FilterDescendantsInstances = _filters
+    params.FilterDescendantsInstances = filters
 
-    local result = Workspace:Raycast(origin, direction, params)
+    local result = workspace:Raycast(origin, direction, params)
     if not result then return true end
 
     local hit = result.Instance
@@ -132,51 +121,39 @@ end
 local function find_closest()
     local PlayerAmt = players:GetPlayers()
     local ClosestPlayer, ClosestViewmodel, ClosestScreenPos, ClosestPart
-    local BestDistance = math_huge
-    local screen_mid = settings.screen_middle or Vector2_new(0,0)
-    local viewmodels_folder = Workspace:FindFirstChild("Viewmodels")
-    local hp = settings.hitbox_priority
-    local hpN = #hp
-    local circleLocal = settings.circle -- cache once
-    local circleVisible = circleLocal and circleLocal.Visible
+    local BestDistance = math.huge
+    local screen_mid = settings.screen_middle or Vector2.new(0,0)
+    local viewmodels_folder = workspace:FindFirstChild("Viewmodels")
 
-    local to_view = to_view_point
-    local offset = settings.hitbox_offset
+    for _, pl in ipairs(PlayerAmt) do
+        if pl == players.LocalPlayer then continue end
 
-    for i = 1, #PlayerAmt do
-        local pl = PlayerAmt[i]
-        if pl == players.LocalPlayer then
-        else
-            local vm
-            if viewmodels_folder then
-                vm = viewmodels_folder:FindFirstChild(pl.Name) or viewmodels_folder:FindFirstChild("Viewmodels/" .. pl.Name)
+        local vm
+        if viewmodels_folder then
+            vm = viewmodels_folder:FindFirstChild(pl.Name) 
+                 or viewmodels_folder:FindFirstChild("Viewmodels/" .. pl.Name)
+        end
+        if not vm or not vm:FindFirstChild("EnemyHighlight") then continue end
+
+        for _, partName in ipairs(settings.hitbox_priority) do
+            local part = vm:FindFirstChild(partName)
+            if not part then continue end
+
+            local aimPos = part.Position + settings.hitbox_offset
+            local point, onScreen = to_view_point(aimPos)
+            if not onScreen then continue end
+
+            local screenDist = (point - screen_mid).Magnitude
+            if settings.circle and settings.circle.Visible and screenDist > settings.circle.Radius then
+                continue
             end
-            if not vm then
-            else
-                local enemy_highlight = vm:FindFirstChild("EnemyHighlight")
-                if not enemy_highlight or not enemy_highlight.Enabled then
-                else
-                    for j = 1, hpN do
-                        local partName = hp[j]
-                        local part = vm:FindFirstChild(partName)
-                        if part then
-                            local aimPos = part.Position + offset
-                            local point, onScreen = to_view(aimPos)
-                            if onScreen then
-                                local screenDist = (point - screen_mid).Magnitude
-                                if not (circleVisible and screenDist > circleLocal.Radius) then
-                                    if screenDist < BestDistance then
-                                        BestDistance = screenDist
-                                        ClosestPlayer = pl
-                                        ClosestViewmodel = vm
-                                        ClosestScreenPos = point
-                                        ClosestPart = part
-                                    end
-                                end
-                            end
-                        end
-                    end
-                end
+
+            if screenDist < BestDistance then
+                BestDistance = screenDist
+                ClosestPlayer = pl
+                ClosestViewmodel = vm
+                ClosestScreenPos = point
+                ClosestPart = part
             end
         end
     end
@@ -191,22 +168,7 @@ aimbot.init = function()
     run_service = get_service("RunService")
     players = get_service("Players")
 
-    camera = workspace.CurrentCamera or camera
-    if camera and camera.ViewportSize then
-        settings.screen_middle = camera.ViewportSize / 2
-        if circle then pcall(function() circle.Position = settings.screen_middle end) end
-    end
-
-    local last_vx, last_vy = 0, 0
-    run_service.RenderStepped:Connect(function()
-        if not camera then return end
-        local vx, vy = camera.ViewportSize.X, camera.ViewportSize.Y
-        if vx ~= last_vx or vy ~= last_vy then
-            last_vx, last_vy = vx, vy
-            settings.screen_middle = Vector2_new(vx/2, vy/2)
-            if circle then pcall(function() circle.Position = settings.screen_middle end) end
-        end
-    end)
+    run_service.RenderStepped:Connect(update_screen_middle)
 
     on_esp_ran(function()
         local player, closest, screen_pos, aim_part = find_closest()
