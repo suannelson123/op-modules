@@ -14,8 +14,8 @@ local settings = {
     smoothing = 200,
     pressed = "aiming",
 
-    visibility = false,           
-    visibility_tolerance = 0,     
+    visibility = false,             
+    visibility_tolerance = 0,       
 
     hitbox_priority = {
         "head", "torso", "shoulder1", "shoulder2",
@@ -36,7 +36,7 @@ pcall(function()
     circle.Position = screen_middle
 end)
 
-local aim_indicator
+local aim_indicator = nil
 pcall(function()
     aim_indicator = Drawing.new("Circle")
     aim_indicator.Visible = false
@@ -90,6 +90,21 @@ local function is_visible(point, targetModel)
         table.insert(params.FilterDescendantsInstances, players.LocalPlayer.Character)
     end
 
+    
+    --[[
+    local vmFolder = workspace:FindFirstChild("Viewmodels")
+    if vmFolder then
+        -- common variant: a child named exactly the player name
+        local localVm = vmFolder:FindFirstChild(players.LocalPlayer.Name)
+        if localVm then table.insert(params.FilterDescendantsInstances, localVm) end
+
+        -- alternate variant: child named "Viewmodels/<PlayerName>"
+        local altName = "Viewmodels/" .. (players.LocalPlayer and players.LocalPlayer.Name or "")
+        local localVmAlt = vmFolder:FindFirstChild(altName)
+        if localVmAlt then table.insert(params.FilterDescendantsInstances, localVmAlt) end
+    end
+    ]]
+
     local currentOrigin = origin
     local remaining = direction.Unit * distance
     local attempts = 0
@@ -98,10 +113,14 @@ local function is_visible(point, targetModel)
 
     while attempts < maxAttempts do
         local result = workspace:Raycast(currentOrigin, remaining, params)
-        if not result then return true end
+        if not result then
+            return true
+        end
 
         local hit = result.Instance
-        if not hit then return true end
+        if not hit then
+            return true
+        end
 
         if targetModel and (hit == targetModel or hit:IsDescendantOf(targetModel)) then
             return true
@@ -119,7 +138,7 @@ local function is_visible(point, targetModel)
             currentOrigin = hitPos + remaining.Unit * eps
             remaining = (point - currentOrigin)
             if remaining.Magnitude <= 0.01 then return true end
-            attempts += 1
+            attempts = attempts + 1
         else
             return false
         end
@@ -128,6 +147,7 @@ local function is_visible(point, targetModel)
     return false
 end
 
+-- ====== Find closest visible target ======
 local function find_closest()
     local PlayerAmt = players:GetPlayers()
     local ClosestPlayer, ClosestViewmodel, ClosestScreenPos, ClosestPart
@@ -161,7 +181,9 @@ local function find_closest()
                 showAimIndicator(point)
             end
 
-            if settings.visibility and not visibleCheck then continue end
+            if settings.visibility and not visibleCheck then
+                continue
+            end
 
             local screenDist = (point - screen_mid).Magnitude
             if settings.circle and settings.circle.Visible and screenDist > settings.circle.Radius then
@@ -178,12 +200,16 @@ local function find_closest()
         end
     end
 
-    if not ClosestPlayer then hideAimIndicator() end
+    if not ClosestPlayer then
+        hideAimIndicator()
+    end
+
     return ClosestPlayer, ClosestViewmodel, ClosestScreenPos, ClosestPart
 end
 
 rawset(aimbot, "aimbot_settings", settings)
 
+-- ====== Init function ======
 aimbot.init = function()
     user_input_service = get_service("UserInputService")
     run_service = get_service("RunService")
