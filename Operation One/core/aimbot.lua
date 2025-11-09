@@ -10,14 +10,14 @@ local settings = {
     enabled = false,
     silent = false,
     circle = Drawing.new("Circle"),
-    screen_middle = Vector2.new(0,0), 
+    screen_middle = Vector2.new(0,0),
     smoothing = 200,
     pressed = "aiming",
 
-    visibility = false,              
-    visibility_tolerance = 0.2,      
+    visibility = false,
+    visibility_tolerance = 0.2,
 
-    hitbox_priority = {             
+    hitbox_priority = {
         "head", "torso", "shoulder1", "shoulder2",
         "arm1", "arm2", "hip1", "hip2", "leg1", "leg2"
     },
@@ -59,6 +59,7 @@ local function showAimIndicator(posVec2)
 end
 
 local function get_useable()
+    if not user_input_service then return false end
     return (
         settings.pressed == "None" and true
         or settings.pressed == "shooting" and user_input_service:IsMouseButtonPressed(Enum.UserInputType.MouseButton1)
@@ -73,8 +74,25 @@ end
 local function update_screen_middle()
     if camera and camera.ViewportSize then
         settings.screen_middle = camera.ViewportSize / 2
-        circle.Position = settings.screen_middle
+        pcall(function() circle.Position = settings.screen_middle end)
     end
+end
+
+local function to_view_point(worldPos)
+    if not camera or not camera.WorldToViewportPoint then
+        return Vector2.new(0,0), false
+    end
+    local ok, resX, resY, resZ
+    ok, resX, resY, resZ = pcall(function()
+        local vec3 = camera:WorldToViewportPoint(worldPos)
+        return vec3.X, vec3.Y, vec3.Z
+    end)
+    if not ok or not resX then
+        return Vector2.new(0,0), false
+    end
+    local screenPos = Vector2.new(resX, resY)
+    local onScreen = (resZ > 0)
+    return screenPos, onScreen
 end
 
 local function is_visible(point, targetModel)
@@ -93,15 +111,17 @@ local function is_visible(point, targetModel)
     end
 
     local vmFolder = workspace:FindFirstChild("Viewmodels")
-    if vmFolder then
-        local localVm = vmFolder:FindFirstChild("Viewmodels/" .. (players.LocalPlayer and players.LocalPlayer.Name or ""))
+    if vmFolder and players and players.LocalPlayer then
+        local localVm = vmFolder:FindFirstChild(players.LocalPlayer.Name)
         if localVm then table.insert(filters, localVm) end
     end
 
     params.FilterDescendantsInstances = filters
 
-    local result = workspace:Raycast(origin, direction, params)
-    if not result then return true end
+    local ok, result = pcall(function()
+        return workspace:Raycast(origin, direction, params)
+    end)
+    if not ok or not result then return true end
 
     local hit = result.Instance
     if not hit then return true end
@@ -119,6 +139,10 @@ local function is_visible(point, targetModel)
 end
 
 local function find_closest()
+    if not players or not players.GetPlayers or not camera then
+        return nil, nil, nil, nil
+    end
+
     local PlayerAmt = players:GetPlayers()
     local ClosestPlayer, ClosestViewmodel, ClosestScreenPos, ClosestPart
     local BestDistance = math.huge
@@ -126,26 +150,25 @@ local function find_closest()
     local viewmodels_folder = workspace:FindFirstChild("Viewmodels")
 
     for _, pl in ipairs(PlayerAmt) do
-        if pl == players.LocalPlayer then continue end
+        if pl == players.LocalPlayer then goto continue_player end
 
         local vm
         if viewmodels_folder then
-            vm = viewmodels_folder:FindFirstChild(pl.Name) 
-                 or viewmodels_folder:FindFirstChild("Viewmodels/" .. pl.Name)
+            vm = viewmodels_folder:FindFirstChild(pl.Name)
         end
-        if not vm or not vm:FindFirstChild("EnemyHighlight") then continue end
+        if not vm or not vm:FindFirstChild("EnemyHighlight") then goto continue_player end
 
         for _, partName in ipairs(settings.hitbox_priority) do
             local part = vm:FindFirstChild(partName)
-            if not part then continue end
+            if not part then goto continue_part end
 
             local aimPos = part.Position + settings.hitbox_offset
             local point, onScreen = to_view_point(aimPos)
-            if not onScreen then continue end
+            if not onScreen then goto continue_part end
 
             local screenDist = (point - screen_mid).Magnitude
             if settings.circle and settings.circle.Visible and screenDist > settings.circle.Radius then
-                continue
+                goto continue_part
             end
 
             if screenDist < BestDistance then
@@ -155,7 +178,11 @@ local function find_closest()
                 ClosestScreenPos = point
                 ClosestPart = part
             end
+
+            ::continue_part::
         end
+
+        ::continue_player::
     end
 
     return ClosestPlayer, ClosestViewmodel, ClosestScreenPos, ClosestPart
@@ -167,6 +194,7 @@ aimbot.init = function()
     user_input_service = get_service("UserInputService")
     run_service = get_service("RunService")
     players = get_service("Players")
+    camera = workspace.CurrentCamera
 
     run_service.RenderStepped:Connect(update_screen_middle)
 
