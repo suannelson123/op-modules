@@ -2,14 +2,14 @@ local aimbot = {}
 local user_input_service
 local run_service
 local players
-local camera = cloneref(workspace.CurrentCamera)
+local camera = workspace.CurrentCamera
 local start = 0
 local rot = Vector2.new()
 
 local settings = {
     enabled = false,
     silent = false,
-    circle = Drawing.new("Circle"),
+    circle = nil,
     screen_middle = Vector2.new(0,0),
     smoothing = 200,
     pressed = "aiming",
@@ -24,26 +24,34 @@ local settings = {
     hitbox_offset = Vector3.new(0, 0, 0)
 }
 
+local ok, newCircle = pcall(function() return Drawing.new("Circle") end)
+if ok and newCircle then
+    settings.circle = newCircle
+    local circle = settings.circle
+    pcall(function()
+        circle.Visible = false
+        circle.Radius = 120
+        circle.Filled = false
+        circle.Thickness = 1
+        circle.Color = Color3.new(1, 1, 1)
+    end)
+end
 local circle = settings.circle
-pcall(function()
-    circle.Visible = false
-    circle.Radius = 120
-    circle.Filled = false
-    circle.Thickness = 1
-    circle.Color = Color3.new(1, 1, 1)
-end)
 
 local aim_indicator = nil
-pcall(function()
-    aim_indicator = Drawing.new("Circle")
-    aim_indicator.Visible = false
-    aim_indicator.Radius = 5
-    aim_indicator.Filled = true
-    aim_indicator.Thickness = 1
-    aim_indicator.NumSides = 16
-    aim_indicator.Transparency = 1
-    aim_indicator.Color = Color3.fromRGB(0, 255, 0)
-end)
+local ok2, newAim = pcall(function() return Drawing.new("Circle") end)
+if ok2 and newAim then
+    aim_indicator = newAim
+    pcall(function()
+        aim_indicator.Visible = false
+        aim_indicator.Radius = 5
+        aim_indicator.Filled = true
+        aim_indicator.Thickness = 1
+        aim_indicator.NumSides = 16
+        aim_indicator.Transparency = 1
+        aim_indicator.Color = Color3.fromRGB(0, 255, 0)
+    end)
+end
 
 local function hideAimIndicator()
     if aim_indicator then pcall(function() aim_indicator.Visible = false end) end
@@ -74,7 +82,9 @@ end
 local function update_screen_middle()
     if camera and camera.ViewportSize then
         settings.screen_middle = camera.ViewportSize / 2
-        pcall(function() circle.Position = settings.screen_middle end)
+        if circle then
+            pcall(function() circle.Position = settings.screen_middle end)
+        end
     end
 end
 
@@ -82,17 +92,14 @@ local function to_view_point(worldPos)
     if not camera or not camera.WorldToViewportPoint then
         return Vector2.new(0,0), false
     end
-    local ok, resX, resY, resZ
-    ok, resX, resY, resZ = pcall(function()
+    local ok, resX, resY, resZ = pcall(function()
         local vec3 = camera:WorldToViewportPoint(worldPos)
         return vec3.X, vec3.Y, vec3.Z
     end)
     if not ok or not resX then
         return Vector2.new(0,0), false
     end
-    local screenPos = Vector2.new(resX, resY)
-    local onScreen = (resZ > 0)
-    return screenPos, onScreen
+    return Vector2.new(resX, resY), (resZ > 0)
 end
 
 local function is_visible(point, targetModel)
@@ -130,18 +137,11 @@ local function is_visible(point, targetModel)
         return true
     end
 
-    local isTransparentEnough = (hit.Transparency >= settings.visibility_tolerance)
-    if isTransparentEnough or not hit.CanCollide then
-        return true
-    end
-
-    return false
+    return (hit.Transparency >= settings.visibility_tolerance or not hit.CanCollide)
 end
 
 local function find_closest()
-    if not players or not players.GetPlayers or not camera then
-        return nil, nil, nil, nil
-    end
+    if not players or not players.GetPlayers or not camera then return nil, nil, nil, nil end
 
     local PlayerAmt = players:GetPlayers()
     local ClosestPlayer, ClosestViewmodel, ClosestScreenPos, ClosestPart
@@ -166,11 +166,11 @@ local function find_closest()
             local point, onScreen = to_view_point(aimPos)
             if not onScreen then goto continue_part end
 
-            local screenDist = (point - screen_mid).Magnitude
-            if settings.circle and settings.circle.Visible and screenDist > settings.circle.Radius then
+            if circle and circle.Visible and (point - screen_mid).Magnitude > circle.Radius then
                 goto continue_part
             end
 
+            local screenDist = (point - screen_mid).Magnitude
             if screenDist < BestDistance then
                 BestDistance = screenDist
                 ClosestPlayer = pl
@@ -191,14 +191,14 @@ end
 rawset(aimbot, "aimbot_settings", settings)
 
 aimbot.init = function()
-    user_input_service = get_service("UserInputService")
-    run_service = get_service("RunService")
-    players = get_service("Players")
+    user_input_service = game:GetService("UserInputService")
+    run_service = game:GetService("RunService")
+    players = game:GetService("Players")
     camera = workspace.CurrentCamera
 
     run_service.RenderStepped:Connect(update_screen_middle)
 
-    on_esp_ran(function()
+    run_service.RenderStepped:Connect(function(deltaTime)
         local player, closest, screen_pos, aim_part = find_closest()
         if not (player and closest and aim_part) then
             hideAimIndicator()
@@ -216,16 +216,13 @@ aimbot.init = function()
             hideAimIndicator()
         end
 
-        if user_input_service.MouseBehavior == Enum.MouseBehavior.Default
-            or not get_useable()
-            or not settings.enabled
-            or settings.silent then
+        if not camera or not get_useable() or not settings.enabled or settings.silent then
             start = 0
             rot = Vector2.new()
             return
         end
 
-        start += (run_service.RenderStepped:Wait() * 1000)
+        start += deltaTime * 1000
         local lerp = math.clamp(start / settings.smoothing, 0, 1)
         local base_cframe = camera.CFrame:Lerp(
             CFrame.lookAt(camera.CFrame.Position, aim_part.Position, Vector3.new(0,1,0)),
@@ -237,7 +234,6 @@ aimbot.init = function()
         if lerp >= 1 then
             start = 0
             rot = Vector2.new()
-            return
         end
     end)
 
@@ -253,7 +249,12 @@ aimbot.init = function()
                 local isVisible = not settings.visibility or is_visible(aim_part.Position, closest)
                 if isVisible and screen_pos then
                     showAimIndicator(screen_pos)
-                    debug.setstack(3, 6, CFrame.lookAt(debug.getstack(3,3).Position, aim_part.Position))
+                    local ok, targetCFrame = pcall(function()
+                        return CFrame.lookAt(camera.CFrame.Position, aim_part.Position)
+                    end)
+                    if ok then
+                        debug.setstack(3, 6, targetCFrame)
+                    end
                 else
                     hideAimIndicator()
                 end
