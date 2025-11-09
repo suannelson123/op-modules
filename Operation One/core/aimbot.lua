@@ -2,15 +2,20 @@ local aimbot = {}
 local user_input_service
 local run_service
 local players
-local camera = cloneref(workspace.CurrentCamera)
+local camera = workspace.CurrentCamera and cloneref(workspace.CurrentCamera) or nil
 local start = 0
 local rot = Vector2.new()
+
+local circle = nil
+if typeof(Drawing) == "table" and type(Drawing.new) == "function" then
+    circle = Drawing.new("Circle")
+end
 
 local settings = {
     enabled = false,
     silent = false,
-    circle = Drawing.new("Circle"),
-    screen_middle = (camera.ViewportSize / 2),
+    circle = circle,
+    screen_middle = (camera and camera.ViewportSize) and (camera.ViewportSize / 2) or Vector2.new(0, 0),
     smoothing = 200,
     pressed = "aiming",
 
@@ -27,43 +32,40 @@ local settings = {
 local screen_middle = settings.screen_middle
 local viewmodels_folder = workspace:FindFirstChild("Viewmodels")
 
-local circle = settings.circle
-circle.Visible = false
-circle.Radius = 120
-circle.Filled = false
-circle.Thickness = 1
-circle.Color = Color3.new(1, 1, 1)
-circle.Position = screen_middle
+if settings.circle then
+    settings.circle.Visible = false
+    settings.circle.Radius = 120
+    settings.circle.Filled = false
+    settings.circle.Thickness = 1
+    settings.circle.Color = Color3.new(1, 1, 1)
+    settings.circle.Position = screen_middle
+end
 
-local last_viewport = camera.ViewportSize
-run_service.RenderStepped:Connect(function()
-    local new_size = camera.ViewportSize
-    if new_size ~= last_viewport then
-        screen_middle = new_size / 2
-        circle.Position = screen_middle
-        last_viewport = new_size
-    end
-end)
-
-local aim_indicator = Drawing.new("Circle")
-aim_indicator.Visible = false
-aim_indicator.Radius = 5
-aim_indicator.Filled = true
-aim_indicator.Thickness = 1
-aim_indicator.NumSides = 16
-aim_indicator.Transparency = 1
-aim_indicator.Color = Color3.fromRGB(0, 255, 0)
+local aim_indicator = nil
+if typeof(Drawing) == "table" and type(Drawing.new) == "function" then
+    aim_indicator = Drawing.new("Circle")
+    aim_indicator.Visible = false
+    aim_indicator.Radius = 5
+    aim_indicator.Filled = true
+    aim_indicator.Thickness = 1
+    aim_indicator.NumSides = 16
+    aim_indicator.Transparency = 1
+    aim_indicator.Color = Color3.fromRGB(0, 255, 0)
+end
 
 local function hideAimIndicator()
-    aim_indicator.Visible = false
+    if aim_indicator then aim_indicator.Visible = false end
 end
 
 local function showAimIndicator(posVec2)
-    aim_indicator.Position = posVec2
-    aim_indicator.Visible = true
+    if aim_indicator then
+        aim_indicator.Position = posVec2
+        aim_indicator.Visible = true
+    end
 end
 
 local function get_useable()
+    if not user_input_service then return false end
     return (
         settings.pressed == "None" and true
         or settings.pressed == "shooting" and user_input_service:IsMouseButtonPressed(Enum.UserInputType.MouseButton1)
@@ -110,6 +112,7 @@ local function is_visible(point, targetModel)
 end
 
 local function find_closest()
+    if not players then return nil end
     local all_players = players:GetPlayers()
     local closest_player, closest_vm, closest_screen_pos, closest_part
     local best_distance = math.huge
@@ -134,7 +137,7 @@ local function find_closest()
             if not onScreen then continue end
 
             local screenDist = (point - screen_mid).Magnitude
-            if circle.Visible and screenDist > circle.Radius then
+            if settings.circle and settings.circle.Visible and screenDist > settings.circle.Radius then
                 continue
             end
 
@@ -157,6 +160,23 @@ aimbot.init = function()
     user_input_service = get_service("UserInputService")
     run_service = get_service("RunService")
     players = get_service("Players")
+
+    camera = workspace.CurrentCamera or camera
+    local last_viewport = camera and camera.ViewportSize or Vector2.new(0,0)
+
+    if run_service then
+        run_service.RenderStepped:Connect(function()
+            if not camera then return end
+            local new_size = camera.ViewportSize
+            if new_size ~= last_viewport then
+                screen_middle = new_size / 2
+                if settings.circle then
+                    settings.circle.Position = screen_middle
+                end
+                last_viewport = new_size
+            end
+        end)
+    end
 
     on_esp_ran(function()
         local player, closest, screen_pos, aim_part = find_closest()
