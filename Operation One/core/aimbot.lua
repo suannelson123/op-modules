@@ -7,8 +7,23 @@ local start = 0
 local rot = Vector2.new()
 
 local circle = nil
+local aim_indicator = nil
 if typeof(Drawing) == "table" and type(Drawing.new) == "function" then
     circle = Drawing.new("Circle")
+    circle.Visible = false
+    circle.Radius = 120
+    circle.Filled = false
+    circle.Thickness = 1
+    circle.Color = Color3.new(1, 1, 1)
+
+    aim_indicator = Drawing.new("Circle")
+    aim_indicator.Visible = false
+    aim_indicator.Radius = 5
+    aim_indicator.Filled = true
+    aim_indicator.Thickness = 1
+    aim_indicator.NumSides = 16
+    aim_indicator.Transparency = 1
+    aim_indicator.Color = Color3.fromRGB(0, 255, 0)
 end
 
 local settings = {
@@ -32,25 +47,10 @@ local settings = {
 local screen_middle = settings.screen_middle
 local viewmodels_folder = workspace:FindFirstChild("Viewmodels")
 
-if settings.circle then
-    settings.circle.Visible = false
-    settings.circle.Radius = 120
-    settings.circle.Filled = false
-    settings.circle.Thickness = 1
-    settings.circle.Color = Color3.new(1, 1, 1)
-    settings.circle.Position = screen_middle
-end
-
-local aim_indicator = nil
-if typeof(Drawing) == "table" and type(Drawing.new) == "function" then
-    aim_indicator = Drawing.new("Circle")
-    aim_indicator.Visible = false
-    aim_indicator.Radius = 5
-    aim_indicator.Filled = true
-    aim_indicator.Thickness = 1
-    aim_indicator.NumSides = 16
-    aim_indicator.Transparency = 1
-    aim_indicator.Color = Color3.fromRGB(0, 255, 0)
+local function to_view_point(world_pos)
+    if not camera then return Vector2.new(0,0), false end
+    local screen_point, onScreen = camera:WorldToViewportPoint(world_pos)
+    return Vector2.new(screen_point.X, screen_point.Y), onScreen
 end
 
 local function hideAimIndicator()
