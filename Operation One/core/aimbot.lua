@@ -2,7 +2,7 @@ local aimbot = {}
 local user_input_service
 local run_service
 local players
-local camera = workspace.CurrentCamera and cloneref(workspace.CurrentCamera) or nil
+local camera = (type(cloneref) == "function" and workspace.CurrentCamera and cloneref(workspace.CurrentCamera)) or workspace.CurrentCamera or nil
 local start = 0
 local rot = Vector2.new()
 
@@ -10,20 +10,7 @@ local circle = nil
 local aim_indicator = nil
 if typeof(Drawing) == "table" and type(Drawing.new) == "function" then
     circle = Drawing.new("Circle")
-    circle.Visible = false
-    circle.Radius = 120
-    circle.Filled = false
-    circle.Thickness = 1
-    circle.Color = Color3.new(1, 1, 1)
-
     aim_indicator = Drawing.new("Circle")
-    aim_indicator.Visible = false
-    aim_indicator.Radius = 5
-    aim_indicator.Filled = true
-    aim_indicator.Thickness = 1
-    aim_indicator.NumSides = 16
-    aim_indicator.Transparency = 1
-    aim_indicator.Color = Color3.fromRGB(0, 255, 0)
 end
 
 local settings = {
@@ -46,6 +33,27 @@ local settings = {
 
 local screen_middle = settings.screen_middle
 local viewmodels_folder = workspace:FindFirstChild("Viewmodels")
+
+if settings.circle then
+    settings.circle.Radius = 120
+    settings.circle.Filled = false
+    settings.circle.Thickness = 1
+    settings.circle.Color = Color3.new(1, 1, 1)
+    settings.circle.Visible = false
+    camera = workspace.CurrentCamera or camera
+    screen_middle = camera and (camera.ViewportSize / 2) or screen_middle
+    settings.circle.Position = screen_middle
+end
+
+if aim_indicator then
+    aim_indicator.Visible = false
+    aim_indicator.Radius = 5
+    aim_indicator.Filled = true
+    aim_indicator.Thickness = 1
+    aim_indicator.NumSides = 16
+    aim_indicator.Transparency = 1
+    aim_indicator.Color = Color3.fromRGB(0, 255, 0)
+end
 
 local function to_view_point(world_pos)
     if not camera then return Vector2.new(0,0), false end
@@ -89,7 +97,7 @@ local function is_visible(point, targetModel)
     local local_char = players.LocalPlayer and players.LocalPlayer.Character
     if local_char then table.insert(filters, local_char) end
 
-    local local_vm = viewmodels_folder and viewmodels_folder:FindFirstChild("Viewmodels/" .. players.LocalPlayer.Name)
+    local local_vm = viewmodels_folder and viewmodels_folder:FindFirstChild("Viewmodels/" .. (players.LocalPlayer and players.LocalPlayer.Name or ""))
     if local_vm then table.insert(filters, local_vm) end
 
     params.FilterType = Enum.RaycastFilterType.Blacklist
@@ -162,7 +170,11 @@ aimbot.init = function()
     players = get_service("Players")
 
     camera = workspace.CurrentCamera or camera
+    viewmodels_folder = workspace:FindFirstChild("Viewmodels") or viewmodels_folder
+
     local last_viewport = camera and camera.ViewportSize or Vector2.new(0,0)
+    screen_middle = camera and (camera.ViewportSize / 2) or screen_middle
+    if settings.circle then settings.circle.Position = screen_middle end
 
     if run_service then
         run_service.RenderStepped:Connect(function()
