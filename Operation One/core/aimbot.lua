@@ -15,7 +15,7 @@ local settings = {
     pressed = "aiming",
 
     visibility = false,              
-    visibility_tolerance = 0.8,    
+    visibility_tolerance = 0,    
 
     hitbox_priority = {              
         "head", "torso", "shoulder1", "shoulder2",
