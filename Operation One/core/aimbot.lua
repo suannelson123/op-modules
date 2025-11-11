@@ -45,10 +45,7 @@ pcall(function()
     aim_indicator.Color = Color3.fromRGB(0,255,0)
 end)
 
-local function to_view_point(world_pos)
-    local scr, onScreen = camera:WorldToViewportPoint(world_pos)
-    return Vector2.new(scr.X, scr.Y), onScreen
-end
+
 
 local function update_screen_middle()
     screen_middle = camera.ViewportSize / 2
