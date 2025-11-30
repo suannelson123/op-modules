@@ -16,8 +16,6 @@ local settings = {
     pressed = "aiming",          
     visibility = false,
     visibility_tolerance = 0.2,
-    circle_visible = false,       -- controlled by UI toggle
-    circle_hidden_hotkey = false, -- controlled by Insert key
     hitbox_priority = {
         "head", "torso", "shoulder1", "shoulder2",
         "arm1", "arm2", "hip1", "hip2", "leg1", "leg2"
@@ -115,7 +113,7 @@ local function find_closest()
             if settings.visibility and not is_visible(aimPos, vm) then continue end
 
             local dist = (scrPos - screen_mid).Magnitude
-            if settings.circle_visible and dist > settings.circle.Radius then continue end
+            if settings.circle.Visible and dist > settings.circle.Radius then continue end
 
             if dist < bestDist then
                 bestDist = dist
@@ -137,19 +135,8 @@ aimbot.init = function()
     run_service        = get_service("RunService")
     players            = get_service("Players")
 
-user_input_service.InputBegan:Connect(function(input, gpe)
-    if gpe then return end
-    if input.KeyCode == Enum.KeyCode.Insert then
-        settings.circle_hidden_hotkey = not settings.circle_hidden_hotkey
-    end
-end)
-
-    
     local renderConn
     local function renderStep()
-       circle.Visible = settings.circle_visible and not settings.circle_hidden_hotkey
-    circle.Position = settings.screen_middle
-        
         local pl, vm, scr, part = find_closest()
         if not (pl and vm and part) then return end
 
@@ -167,7 +154,6 @@ end)
 
         local mouseDelta = user_input_service:GetMouseDelta() * 0.0005
         camera.CFrame = baseCF * CFrame.Angles(0, -mouseDelta.X, 0) * CFrame.Angles(-mouseDelta.Y, 0, 0)
-        
     end
 
     if typeof(on_esp_ran) == "function" then
