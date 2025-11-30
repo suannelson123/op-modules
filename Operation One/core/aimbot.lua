@@ -14,8 +14,6 @@ local settings = {
     screen_middle = screen_middle,
     smoothing = 200,
     pressed = "aiming",          
-    visibility = false,
-    visibility_tolerance = 0.2,
     hitbox_priority = {
         "head", "torso", "shoulder1", "shoulder2",
         "arm1", "arm2", "hip1", "hip2", "leg1", "leg2"
@@ -70,33 +68,7 @@ local function get_useable()
     ) or false
 end
 
-local function is_visible(point, targetModel)
-    if not camera or not camera.CFrame then return false end
-    local origin = camera.CFrame.Position
-    local dir    = point - origin
 
-    local params = RaycastParams.new()
-    params.FilterType = Enum.RaycastFilterType.Exclude
-    params.FilterDescendantsInstances = {}
-
-    if players and players.LocalPlayer and players.LocalPlayer.Character then
-        table.insert(params.FilterDescendantsInstances, players.LocalPlayer.Character)
-    end
-
-    local result = workspace:Raycast(origin, dir, params)
-    if not result then return true end                  
-    local hit = result.Instance
-
-    if targetModel and (hit == targetModel or hit:IsDescendantOf(targetModel)) then
-        return true
-    end
-
-    if not hit.CanCollide or hit.Transparency > settings.visibility_tolerance then
-        return true
-    end
-
-    return false
-end
 
 local function find_closest()
     local closestPl, closestVM, closestScr, closestPart
@@ -118,7 +90,7 @@ local function find_closest()
             local scrPos, onScreen = to_view_point(aimPos)
             if not onScreen then continue end
 
-            if settings.visibility and not is_visible(aimPos, vm) then continue end
+            -- visibility REMOVED
 
             local dist = (scrPos - screen_mid).Magnitude
             if settings.circle.Visible and dist > settings.circle.Radius then continue end
@@ -135,6 +107,7 @@ local function find_closest()
 
     return closestPl, closestVM, closestScr, closestPart
 end
+
 
 rawset(aimbot, "aimbot_settings", settings)
 
