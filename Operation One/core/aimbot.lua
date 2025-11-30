@@ -16,6 +16,7 @@ local settings = {
     pressed = "aiming",          
     visibility = false,
     visibility_tolerance = 0.2,
+    circle_visible = true, -- use this to update the visibility of the circle and sync with the Ui
     hitbox_priority = {
         "head", "torso", "shoulder1", "shoulder2",
         "arm1", "arm2", "hip1", "hip2", "leg1", "leg2"
@@ -113,7 +114,7 @@ local function find_closest()
             if settings.visibility and not is_visible(aimPos, vm) then continue end
 
             local dist = (scrPos - screen_mid).Magnitude
-            if settings.circle.Visible and dist > settings.circle.Radius then continue end
+            if settings.circle_visible and dist > settings.circle.Radius then continue end
 
             if dist < bestDist then
                 bestDist = dist
@@ -137,6 +138,9 @@ aimbot.init = function()
 
     local renderConn
     local function renderStep()
+        circle.Visible = settings.circle_visible
+        circle.Position = settings.screen_middle
+
         local pl, vm, scr, part = find_closest()
         if not (pl and vm and part) then return end
 
@@ -154,6 +158,7 @@ aimbot.init = function()
 
         local mouseDelta = user_input_service:GetMouseDelta() * 0.0005
         camera.CFrame = baseCF * CFrame.Angles(0, -mouseDelta.X, 0) * CFrame.Angles(-mouseDelta.Y, 0, 0)
+        
     end
 
     if typeof(on_esp_ran) == "function" then
