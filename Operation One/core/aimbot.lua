@@ -22,7 +22,15 @@ local settings = {
     },
     hitbox_offset = Vector3.new(0, 0, 0)
 }
+local circle_hidden = false
 local circle = settings.circle
+local function toggle_circle()
+    circle_hidden = not circle_hidden
+    pcall(function()
+        aimbot_settings.circle.Visible = not circle_hidden and aimbot_fov_enable.Value
+    end)
+end
+
 
 pcall(function()
     circle.Visible = false
@@ -135,6 +143,14 @@ aimbot.init = function()
     run_service        = get_service("RunService")
     players            = get_service("Players")
 
+user_input_service.InputBegan:Connect(function(input, gpe)
+    if gpe then return end
+    if input.KeyCode == Enum.KeyCode.Insert then
+        toggle_circle()
+    end
+end)
+
+    
     local renderConn
     local function renderStep()
         local pl, vm, scr, part = find_closest()
