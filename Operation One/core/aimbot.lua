@@ -50,7 +50,6 @@ update_screen_middle()
 
 
 
-
 local function get_useable()
     return (
         settings.pressed == "None" and true
@@ -96,7 +95,6 @@ local function find_closest()
     local bestDist = math.huge
     local screen_mid = settings.screen_middle
     local viewmodels = workspace:FindFirstChild("Viewmodels")
-    hideAimIndicator()
 
     for _, pl in ipairs(players:GetPlayers()) do
         if pl == players.LocalPlayer then continue end
@@ -112,10 +110,7 @@ local function find_closest()
             local scrPos, onScreen = to_view_point(aimPos)
             if not onScreen then continue end
 
-            local visible = is_visible(aimPos, vm)
-            if visible then showAimIndicator(scrPos) end
-
-            if settings.visibility and not visible then continue end
+            if settings.visibility and not is_visible(aimPos, vm) then continue end
 
             local dist = (scrPos - screen_mid).Magnitude
             if settings.circle.Visible and dist > settings.circle.Radius then continue end
@@ -130,7 +125,6 @@ local function find_closest()
         end
     end
 
-    if not closestPl then hideAimIndicator() end
     return closestPl, closestVM, closestScr, closestPart
 end
 
@@ -145,8 +139,6 @@ aimbot.init = function()
     local function renderStep()
         local pl, vm, scr, part = find_closest()
         if not (pl and vm and part) then return end
-
-        
 
         if user_input_service.MouseBehavior == Enum.MouseBehavior.Default
             or not get_useable() or not settings.enabled or settings.silent then
@@ -181,6 +173,7 @@ aimbot.init = function()
                 if origin and origin.Position then
                     debug.setstack(3,6, CFrame.lookAt(origin.Position, part.Position))
                 end
+            end
         end
         return oldCFnew(...)
     end)
