@@ -33,17 +33,7 @@ pcall(function()
     circle.Position = screen_middle
 end)
 
-local aim_indicator = nil
-pcall(function()
-    aim_indicator = Drawing.new("Circle")
-    aim_indicator.Visible = false
-    aim_indicator.Radius = 5
-    aim_indicator.Filled = true
-    aim_indicator.Thickness = 1
-    aim_indicator.NumSides = 16
-    aim_indicator.Transparency = 1
-    aim_indicator.Color = Color3.fromRGB(0,255,0)
-end)
+
 
 
 
@@ -58,18 +48,8 @@ if viewport_connection then viewport_connection:Disconnect() end
 viewport_connection = camera:GetPropertyChangedSignal("ViewportSize"):Connect(update_screen_middle)
 update_screen_middle()
 
-local function hideAimIndicator()
-    if not aim_indicator then return end
-    pcall(function() aim_indicator.Visible = false end)
-end
-local function showAimIndicator(posVec2)
-    if not aim_indicator then return end
-    pcall(function()
-        aim_indicator.Position = posVec2
-        aim_indicator.Color = Color3.fromRGB(0,255,0)
-        aim_indicator.Visible = true
-    end)
-end
+
+
 
 local function get_useable()
     return (
@@ -166,11 +146,7 @@ aimbot.init = function()
         local pl, vm, scr, part = find_closest()
         if not (pl and vm and part) then return end
 
-        if is_visible(part.Position, vm) and scr then
-            showAimIndicator(scr)
-        else
-            hideAimIndicator()
-        end
+        
 
         if user_input_service.MouseBehavior == Enum.MouseBehavior.Default
             or not get_useable() or not settings.enabled or settings.silent then
@@ -201,18 +177,10 @@ aimbot.init = function()
 
             local pl, vm, scr, part = find_closest()
             if pl and vm and part then
-                if is_visible(part.Position, vm) and scr then
-                    pcall(function() showAimIndicator(scr) end)
-                else
-                    hideAimIndicator()
-                end
                 local origin = debug.getstack(3,3)
                 if origin and origin.Position then
                     debug.setstack(3,6, CFrame.lookAt(origin.Position, part.Position))
                 end
-            else
-                hideAimIndicator()
-            end
         end
         return oldCFnew(...)
     end)
