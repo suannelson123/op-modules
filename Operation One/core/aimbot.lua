@@ -16,7 +16,8 @@ local settings = {
     pressed = "aiming",          
     visibility = false,
     visibility_tolerance = 0.2,
-    circle_visible = true, -- use this to update the visibility of the circle and sync with the Ui
+    circle_visible = false,       -- controlled by UI toggle
+    circle_hidden_hotkey = false, -- controlled by Insert key
     hitbox_priority = {
         "head", "torso", "shoulder1", "shoulder2",
         "arm1", "arm2", "hip1", "hip2", "leg1", "leg2"
@@ -136,11 +137,19 @@ aimbot.init = function()
     run_service        = get_service("RunService")
     players            = get_service("Players")
 
+user_input_service.InputBegan:Connect(function(input, gpe)
+    if gpe then return end
+    if input.KeyCode == Enum.KeyCode.Insert then
+        settings.circle_hidden_hotkey = not settings.circle_hidden_hotkey
+    end
+end)
+
+    
     local renderConn
     local function renderStep()
-        circle.Visible = settings.circle_visible
-        circle.Position = settings.screen_middle
-
+       circle.Visible = settings.circle_visible and not settings.circle_hidden_hotkey
+    circle.Position = settings.screen_middle
+        
         local pl, vm, scr, part = find_closest()
         if not (pl and vm and part) then return end
 
