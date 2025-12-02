@@ -24,10 +24,9 @@ local circle_hidden = false
 local circle = settings.circle
 local function toggle_circle()
     circle_hidden = not circle_hidden
-    pcall(function()
-        aimbot_settings.circle.Visible = not circle_hidden and aimbot_fov_enable.Value
-    end)
+    circle.Visible = not circle_hidden
 end
+
 
 
 pcall(function()
@@ -93,7 +92,8 @@ local function find_closest()
             -- visibility REMOVED
 
             local dist = (scrPos - screen_mid).Magnitude
-            if settings.circle.Visible and dist > settings.circle.Radius then continue end
+            if dist > settings.circle.Radius then continue end
+
 
             if dist < bestDist then
                 bestDist = dist
