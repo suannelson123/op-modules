@@ -89,7 +89,6 @@ local function find_closest()
             local scrPos, onScreen = to_view_point(aimPos)
             if not onScreen then continue end
 
-            -- visibility REMOVED
 
             local dist = (scrPos - screen_mid).Magnitude
             if dist > settings.circle.Radius then continue end
