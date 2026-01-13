@@ -1,3 +1,6 @@
+--patched
+
+--[[
 local RecoilAmt = 50; --// this is the percentage of recoil you want, 100% = full recoil, 0% = no recoil
 local SpreadAmt = 0; --// this is the percentage of spread you want, 100% = regular spread, 0% = no spread
 local FastReload = true;
@@ -20,3 +23,6 @@ run_on_actor(getactors()[1], string.gsub([==[
         return MathRandom(...);
     end));
 ]==], "%w+", {["RecoilAmt"] = RecoilAmt / 100, ["FastReload"] = FastReload, ["SpreadAmt"] = SpreadAmt / 100}));
+
+
+]]
