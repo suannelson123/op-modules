@@ -21,18 +21,17 @@ local settings = {
 rawset(player_esp, "set_player_esp", newcclosure(function(character: Model)
     task.wait(0.5)
     if not (character:IsA("Model") and character:FindFirstChild("EnemyHighlight")) or has_esp[character] then return end
-
-    local name = character.Name:gsub("Viewmodels/", "")
-    local humanoid = players[name] and players[name].Character and players[name].Character:FindFirstChildOfClass("Humanoid")
+    local humanoid = nil
     local torso = character:FindFirstChild("torso")
     if not torso then return end
 
     local c1, c2
+            
     has_esp[character] = {
-        name = name,
-        humanoid = humanoid,
-        self = character
+    humanoid = humanoid,
+    self = character
     }
+
 
     local health_bar_inner = Drawing.new("Square")
     health_bar_inner.Visible = false
@@ -224,7 +223,20 @@ player_esp.init = function()
     players = get_service("Players")
     run_service = get_service("RunService")
     core_gui = get_service("CoreGui")
+
+    local viewmodels = workspace:WaitForChild("Viewmodels")
+    for _, vm in ipairs(viewmodels:GetChildren()) do
+        if vm:IsA("Model") then
+            player_esp.set_player_esp(vm)
+        end
+    end
+    viewmodels.ChildAdded:Connect(function(vm)
+        if vm:IsA("Model") then
+            player_esp.set_player_esp(vm)
+        end
+    end)
     track_objects()
 end
+
 
 return player_esp
