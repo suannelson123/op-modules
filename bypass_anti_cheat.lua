@@ -1,3 +1,5 @@
+-- PATCHED
+
 --[[
 Before using:
 
@@ -6,6 +8,8 @@ Add the following to your autoexec:
 
 setfflag("DebugRunParallelLuaOnMainThread", "True")
 ]]
+
+--[[
 
 local Paths = {
     "ReplicatedStorage.Modules.Items.Item.Gun.Automatic.MP7.Animations.Reload";
@@ -27,3 +31,5 @@ for _, Thread in pairs(getgc(true)) do
         end;
     end;
 end;
+
+]]
