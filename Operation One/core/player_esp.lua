@@ -230,16 +230,22 @@ player_esp.init = function()
     core_gui = get_service("CoreGui")
 
     local viewmodels = workspace:WaitForChild("Viewmodels")
-    for _, vm in ipairs(viewmodels:GetChildren()) do
-        if vm:IsA("Model") then
+   for _, vm in ipairs(viewmodels:GetChildren()) do
+    if vm:IsA("Model") and vm:FindFirstChild("head") and vm:FindFirstChild("torso") then
+        if (vm.torso.Position - camera.CFrame.Position).Magnitude > 5 then
             player_esp.set_player_esp(vm)
         end
     end
-    viewmodels.ChildAdded:Connect(function(vm)
-        if vm:IsA("Model") then
+end
+
+viewmodels.ChildAdded:Connect(function(vm)
+    if vm:IsA("Model") and vm:FindFirstChild("head") and vm:FindFirstChild("torso") then
+        if (vm.torso.Position - camera.CFrame.Position).Magnitude > 5 then
             player_esp.set_player_esp(vm)
         end
-    end)
+    end
+end)
+
     track_objects()
 end
 
