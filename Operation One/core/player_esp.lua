@@ -20,7 +20,12 @@ local settings = {
 
 rawset(player_esp, "set_player_esp", newcclosure(function(character: Model)
     task.wait(0.5)
-    if not (character:IsA("Model") and character:FindFirstChild("EnemyHighlight")) or has_esp[character] then return end
+
+    if not character:IsA("Model") or has_esp[character] then
+    return
+    end
+
+            
     local humanoid = nil
     local torso = character:FindFirstChild("torso")
     if not torso then return end
