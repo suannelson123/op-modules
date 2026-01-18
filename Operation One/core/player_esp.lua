@@ -30,16 +30,8 @@ rawset(player_esp, "set_player_esp", newcclosure(function(character: Model)
     local torso = character:FindFirstChild("torso")
     if not torso then return end
 
-    if (torso.Position - camera.CFrame.Position).Magnitude < 5 then
-    return
-    end
-        
-    if not character:FindFirstChild("head") then return end
-
     local c1, c2
-
-    print("ESP attached to:", character:GetFullName())      
-    
+            
     has_esp[character] = {
     humanoid = humanoid,
     self = character
@@ -68,72 +60,52 @@ rawset(player_esp, "set_player_esp", newcclosure(function(character: Model)
     skeleton.Thickness = 1
     skeleton.ZIndex = 5
 
-    
+    c1 = run_service.RenderStepped:Connect(function()
+        local point, on = to_view_point(torso.CFrame.Position)
+        if on then
+            for _, v in next, esp_ran do
+                v(has_esp[character], point)
+            end
 
-    local lastPos = torso.Position
-local stillTime = 0
+            local cf_mid, size = character:GetBoundingBox()
+            local bottom_right = to_view_point((CFrame.new(cf_mid.Position, camera.CFrame.Position) * CFrame.new(-size.X / 2, -size.Y / 2, 0)).Position)
+            local bottom_left = to_view_point((CFrame.new(cf_mid.Position, camera.CFrame.Position) * CFrame.new(size.X / 2, -size.Y / 2, 0)).Position)
+            local head_offset = (character.head.CFrame * -Vector3.new(0, (character.head.Size.Y / 2), 0))
 
-c1 = run_service.RenderStepped:Connect(function(dt)
-    if (torso.Position - lastPos).Magnitude < 0.01 then
-        stillTime += dt
-        if stillTime > 1 then
-            c1:Disconnect()
-            has_esp[character] = nil
-            health_bar_inner:Destroy()
-            health_bar_outer:Destroy()
-            skeleton:Destroy()
-            return
-        end
-    else
-        stillTime = 0
-        lastPos = torso.Position
-    end
+            if settings.health_bar and humanoid then
+                health_bar_inner.Visible = true
+                health_bar_outer.Visible = true
 
-    local point, on = to_view_point(torso.CFrame.Position)
-    if on then
-        for _, v in next, esp_ran do
-            v(has_esp[character], point)
-        end
+                local health = math.clamp((humanoid.Health / humanoid.MaxHealth), 0, 1)
+                health_bar_outer.Size = Vector2.new(bottom_left.X - bottom_right.X, 3)
+                health_bar_outer.Position = Vector2.new(bottom_right.X, bottom_left.Y)
+                health_bar_inner.Size = Vector2.new(((bottom_left.X - bottom_right.X) + 2) * health, 1)
+                health_bar_inner.Position = Vector2.new(health_bar_outer.Position.X - 1, bottom_left.Y + 1)
+                health_bar_inner.Color = Color3.new(1, 0, 0):Lerp(Color3.new(0, 1, 0), health)
+            else
+                health_bar_inner.Visible = false
+                health_bar_outer.Visible = false
+            end
 
-        local cf_mid, size = character:GetBoundingBox()
-        local bottom_right = to_view_point((CFrame.new(cf_mid.Position, camera.CFrame.Position) * CFrame.new(-size.X / 2, -size.Y / 2, 0)).Position)
-        local bottom_left = to_view_point((CFrame.new(cf_mid.Position, camera.CFrame.Position) * CFrame.new(size.X / 2, -size.Y / 2, 0)).Position)
-        local head_offset = (character.head.CFrame * -Vector3.new(0, (character.head.Size.Y / 2), 0))
-
-        if settings.health_bar and humanoid then
-            health_bar_inner.Visible = true
-            health_bar_outer.Visible = true
-            local health = math.clamp((humanoid.Health / humanoid.MaxHealth), 0, 1)
-            health_bar_outer.Size = Vector2.new(bottom_left.X - bottom_right.X, 3)
-            health_bar_outer.Position = Vector2.new(bottom_right.X, bottom_left.Y)
-            health_bar_inner.Size = Vector2.new(((bottom_left.X - bottom_right.X) + 2) * health, 1)
-            health_bar_inner.Position = Vector2.new(health_bar_outer.Position.X - 1, bottom_left.Y + 1)
-            health_bar_inner.Color = Color3.new(1, 0, 0):Lerp(Color3.new(0, 1, 0), health)
+            if settings.skelton then
+                skeleton:Clear()
+                skeleton.Color3 = settings.skelton_color
+                skeleton:AddLines({
+                    character.head.Position, character.torso.Position, head_offset,
+                    character.shoulder2.Position, character.shoulder2.Position, character.arm2.Position,
+                    head_offset, character.shoulder1.Position, character.shoulder1.Position, character.arm1.Position,
+                    character.torso.Position, character.hip2.Position, character.hip2.Position, character.leg2.Position,
+                    character.torso.Position, character.hip1.Position, character.hip1.Position, character.leg1.Position
+                })
+            else
+                skeleton:Clear()
+            end
         else
+            skeleton:Clear()
             health_bar_inner.Visible = false
             health_bar_outer.Visible = false
         end
-
-        if settings.skelton then
-            skeleton:Clear()
-            skeleton.Color3 = settings.skelton_color
-            skeleton:AddLines({
-                character.head.Position, character.torso.Position, head_offset,
-                character.shoulder2.Position, character.shoulder2.Position, character.arm2.Position,
-                head_offset, character.shoulder1.Position, character.shoulder1.Position, character.arm1.Position,
-                character.torso.Position, character.hip2.Position, character.hip2.Position, character.leg2.Position,
-                character.torso.Position, character.hip1.Position, character.hip1.Position, character.leg1.Position
-            })
-        else
-            skeleton:Clear()
-        end
-    else
-        skeleton:Clear()
-        health_bar_inner.Visible = false
-        health_bar_outer.Visible = false
-    end
-end)
-
+    end)
 
     c2 = character.AncestryChanged:Connect(function(_, parent)
         if parent ~= nil then return end
@@ -257,19 +229,17 @@ player_esp.init = function()
     run_service = get_service("RunService")
     core_gui = get_service("CoreGui")
 
-   local viewmodels = workspace:WaitForChild("Viewmodels")
-for _, vm in ipairs(viewmodels:GetChildren()) do
-    if vm:IsA("Model") and not vm.Name:lower():find("local") then
-        player_esp.set_player_esp(vm)
+    local viewmodels = workspace:WaitForChild("Viewmodels")
+    for _, vm in ipairs(viewmodels:GetChildren()) do
+        if vm:IsA("Model") then
+            player_esp.set_player_esp(vm)
+        end
     end
-end
-
-viewmodels.ChildAdded:Connect(function(vm)
-    if vm:IsA("Model") and not vm.Name:lower():find("local") then
-        player_esp.set_player_esp(vm)
-    end
-end)
-
+    viewmodels.ChildAdded:Connect(function(vm)
+        if vm:IsA("Model") then
+            player_esp.set_player_esp(vm)
+        end
+    end)
     track_objects()
 end
 
