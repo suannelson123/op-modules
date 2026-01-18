@@ -25,27 +25,14 @@ rawset(player_esp, "set_player_esp", newcclosure(function(character: Model)
     return
     end
 
+            
     local humanoid = nil
     local torso = character:FindFirstChild("torso")
     if not torso then return end
-    
-    if (torso.Position - camera.CFrame.Position).Magnitude < 5 then
-        return
-    end
-    
-    if not (
-        character:FindFirstChild("head") and
-        character:FindFirstChild("arm1") and
-        character:FindFirstChild("arm2") and
-        character:FindFirstChild("leg1") and
-        character:FindFirstChild("leg2")
-    ) then
-        return
-    end
-
 
     local c1, c2
-            
+     print("ESP attached to:", character:GetFullName())       
+    
     has_esp[character] = {
     humanoid = humanoid,
     self = character
