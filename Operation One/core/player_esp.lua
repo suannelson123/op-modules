@@ -25,11 +25,6 @@ rawset(player_esp, "set_player_esp", newcclosure(function(character: Model)
     return
     end
 
-            
-    local humanoid = nil
-    local torso = character:FindFirstChild("torso")
-    if not torso then return end
-
     local humanoid = nil
     local torso = character:FindFirstChild("torso")
     if not torso then return end
