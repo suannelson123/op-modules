@@ -61,6 +61,14 @@ rawset(player_esp, "set_player_esp", newcclosure(function(character: Model)
     skeleton.ZIndex = 5
 
     c1 = run_service.RenderStepped:Connect(function()
+
+         if not torso or torso.Transparency >= 1 then
+        skeleton:Clear()
+        health_bar_inner.Visible = false
+        health_bar_outer.Visible = false
+        return
+    end
+    
         local point, on = to_view_point(torso.CFrame.Position)
         if on then
             for _, v in next, esp_ran do
@@ -224,27 +232,35 @@ end))
 
 rawset(player_esp, "esp_player_settings", settings)
 
-player_esp.init = function()
+    player_esp.init = function()
     players = get_service("Players")
     run_service = get_service("RunService")
     core_gui = get_service("CoreGui")
 
     local viewmodels = workspace:WaitForChild("Viewmodels")
-   for _, vm in ipairs(viewmodels:GetChildren()) do
-    if vm:IsA("Model") and vm:FindFirstChild("head") and vm:FindFirstChild("torso") then
-        if (vm.torso.Position - camera.CFrame.Position).Magnitude > 5 then
-            player_esp.set_player_esp(vm)
+
+    for _, vm in ipairs(viewmodels:GetChildren()) do
+        if vm:IsA("Model") and vm.Name ~= "LocalViewmodel" then
+            local head = vm:FindFirstChild("head")
+            local torso = vm:FindFirstChild("torso")
+            if head and torso and torso.Transparency < 1 then
+                player_esp.set_player_esp(vm)
+            end
         end
     end
+
+    viewmodels.ChildAdded:Connect(function(vm)
+        if vm:IsA("Model") and vm.Name ~= "LocalViewmodel" then
+            local head = vm:FindFirstChild("head")
+            local torso = vm:FindFirstChild("torso")
+            if head and torso and torso.Transparency < 1 then
+                player_esp.set_player_esp(vm)
+            end
+        end
+    end)
 end
 
-viewmodels.ChildAdded:Connect(function(vm)
-    if vm:IsA("Model") and vm:FindFirstChild("head") and vm:FindFirstChild("torso") then
-        if (vm.torso.Position - camera.CFrame.Position).Magnitude > 5 then
-            player_esp.set_player_esp(vm)
-        end
-    end
-end)
+
 
     track_objects()
 end
