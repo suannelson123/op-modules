@@ -258,12 +258,10 @@ rawset(player_esp, "esp_player_settings", settings)
             end
         end
     end)
+
+    track_objects() -- call this inside init
 end
 
-
-
-    track_objects()
-end
 
 
 return player_esp
