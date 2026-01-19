@@ -16,7 +16,7 @@ local settings = {
     show_drones = false,
     claymore_color = Color3.fromRGB(255, 0, 0),
     drone_color = Color3.fromRGB(0, 255, 255),
-    team_check = true, 
+    team_check = false, 
 }
 
 local teamHighlightCache = {}
