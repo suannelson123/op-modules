@@ -16,16 +16,41 @@ local settings = {
     show_drones = false,
     claymore_color = Color3.fromRGB(255, 0, 0),
     drone_color = Color3.fromRGB(0, 255, 255),
+    team_check = true, 
 }
+
+local teamHighlightCache = {}
+local lastCacheUpdate = 0
+local CACHE_UPDATE_INTERVAL = 0.5
+
+local function updateTeamHighlightCache()
+    teamHighlightCache = {}
+    for _, obj in pairs(workspace:GetChildren()) do
+        if obj:IsA("Highlight") and obj.Adornee then
+            teamHighlightCache[obj.Adornee] = true
+        end
+    end
+end
+
+local function hasTeamHighlight(model)
+    if not model then return false end
+    
+    local currentTime = tick()
+    if currentTime - lastCacheUpdate > CACHE_UPDATE_INTERVAL then
+        updateTeamHighlightCache()
+        lastCacheUpdate = currentTime
+    end
+    
+    return teamHighlightCache[model] == true
+end
 
 rawset(player_esp, "set_player_esp", newcclosure(function(character: Model)
     task.wait(0.5)
 
     if not character:IsA("Model") or has_esp[character] then
-    return
+        return
     end
 
-            
     local humanoid = nil
     local torso = character:FindFirstChild("torso")
     if not torso then return end
@@ -33,10 +58,9 @@ rawset(player_esp, "set_player_esp", newcclosure(function(character: Model)
     local c1, c2
             
     has_esp[character] = {
-    humanoid = humanoid,
-    self = character
+        humanoid = humanoid,
+        self = character
     }
-
 
     local health_bar_inner = Drawing.new("Square")
     health_bar_inner.Visible = false
@@ -61,13 +85,19 @@ rawset(player_esp, "set_player_esp", newcclosure(function(character: Model)
     skeleton.ZIndex = 5
 
     c1 = run_service.RenderStepped:Connect(function()
-
-         if not torso or torso.Transparency >= 1 then
-        skeleton:Clear()
-        health_bar_inner.Visible = false
-        health_bar_outer.Visible = false
-        return
-    end
+        if not torso or torso.Transparency >= 1 then
+            skeleton:Clear()
+            health_bar_inner.Visible = false
+            health_bar_outer.Visible = false
+            return
+        end
+        
+        if settings.team_check and hasTeamHighlight(character) then
+            skeleton:Clear()
+            health_bar_inner.Visible = false
+            health_bar_outer.Visible = false
+            return
+        end
     
         local point, on = to_view_point(torso.CFrame.Position)
         if on then
@@ -232,7 +262,7 @@ end))
 
 rawset(player_esp, "esp_player_settings", settings)
 
-    player_esp.init = function()
+player_esp.init = function()
     players = get_service("Players")
     run_service = get_service("RunService")
     core_gui = get_service("CoreGui")
@@ -261,7 +291,5 @@ rawset(player_esp, "esp_player_settings", settings)
 
     track_objects()
 end
-
-
 
 return player_esp
