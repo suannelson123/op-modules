@@ -13,7 +13,8 @@ weapon_modifications.init = function()
     local old_math_random = clonefunction(math.random);
     hook_function(math.random, newcclosure(function(...)
         if (debug.info(3, 'n') == "send_shoot" and settings.no_spread) then
-            debug.setstack(3, 13, 0);
+            debug.setstack(3, 12, 0);
+            debug.setstack(3, 5, 0);
         end;
         return old_math_random(...);
     end));

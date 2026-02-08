@@ -23,7 +23,8 @@ do
         "core/aimbot.lua",
         "core/player_esp.lua",
         "core/weapon_modifications.lua",
-        "core/attachment_editor.lua"
+        "core/attachment_editor.lua",
+        "core/pingspoofer.lua"
     }
 
     local inits = {}
@@ -115,12 +116,12 @@ end
             local aimbot_groupbox = combat:AddLeftGroupbox("Aimbot") do
                 
                 aimbot_groupbox:AddToggle('aimbot_enable', {
-    	Text = "Enable",
-   	 Default = false,
-    	Callback = function(value: boolean)
-        aimbot_settings.enabled = value
-    end
-})
+                    Text = "Enable",
+                    Default = false,
+                    Callback = function(value: boolean)
+                        aimbot_settings.enabled = value
+                    end
+                })
 
 aimbot_groupbox:AddToggle('aimbot_psilent', {
     Text = "PSilent",
@@ -136,6 +137,15 @@ aimbot_groupbox:AddToggle('aimbot_visibility', {
     Tooltip = "Only target enemies visible on screen (not behind walls)",
     Callback = function(value: boolean)
         aimbot_settings.visibility = value
+    end
+})
+
+aimbot_groupbox:AddToggle('aimbot_team_check', {
+    Text = "Team Check",
+    Default = false,
+    Tooltip = "Ignore teammates",
+    Callback = function(value: boolean)
+        aimbot_settings.team_check = value
     end
 })
 
@@ -212,35 +222,13 @@ aimbot_groupbox:AddSlider('aimbot_fov_size', {
                     weapon_modifications_settings.recoil_y = (Value / 100);
                 end});
 
-    
-
-
-               
-
-
-
-
-
-                --[[weapon_modifications_groupbox:AddSlider('weapon_modifications_firerate_multiplier', {Text = 'Firerate Multiplier', Default = 1, Min = 1, Max = 10, Rounding = 0, Compact = false, Callback = function(Value)
-                    -- soon as i find a better method.
-                end});]]
 
             end;
-        --[[ soon im lazy af deal with it
-            local other_groupbox = combat:AddRightGroupbox("Other") do
-                
-                other_groupbox:AddDropdown('other_hitbox_override', {Values = {"off", "head", "torso"} , Default = 1, Multi = false, Text = 'Hitbox Override', Callback = function(Value)
-
-                end});
-
-                other_groupbox:AddToggle('other_doubletap', {Text = "Doubletap", Default = false, Callback = function(value: boolean)
-                   
-                end});
-
-            end;
-        ]]
+        
         end;
 
+
+        
         local esp = window:AddTab("ESP") do
 
     local player_esp_groupbox = esp:AddLeftGroupbox("Player") do
@@ -263,6 +251,15 @@ aimbot_groupbox:AddSlider('aimbot_fov_size', {
             Text = "Health Bar", Default = false,
             Callback = function(value)
                 esp_player_settings.health_bar = value
+            end
+        })
+
+        -- NEW: Team Check Toggle
+        player_esp_groupbox:AddToggle('player_esp_team_check', {
+            Text = "Team Check", Default = false,
+            Tooltip = "Hide ESP for teammates",
+            Callback = function(value)
+                esp_player_settings.team_check = value
             end
         })
     end
@@ -297,10 +294,35 @@ aimbot_groupbox:AddSlider('aimbot_fov_size', {
                 esp_player_settings.drone_color = value
             end
         })
+    end;
+
     end
 
 
         local _local = window:AddTab("Local") do
+
+            local ping_spoofer_groupbox = _local:AddRightGroupbox("Ping Spoofer") do
+                ping_spoofer_groupbox:AddDropdown('pingspoofer_mode', {
+                    Values = {"Off", "50 ms", "100 ms", "200 ms", "500 ms", "999 ms", "Infinite", "NaN"},
+                    Default = 1,
+                    Multi = false,
+                    Text = "Ping",
+                    Tooltip = "Spoof displayed network ping",
+                    Callback = function(Value)
+                        local modeMap = {
+                            ["Off"] = "off",
+                            ["50 ms"] = 0.05,
+                            ["100 ms"] = 0.1,
+                            ["200 ms"] = 0.2,
+                            ["500 ms"] = 0.5,
+                            ["999 ms"] = 0.999,
+                            ["Infinite"] = "inf",
+                            ["NaN"] = "nan"
+                        }
+                        pingspoofer_settings.mode = modeMap[Value] or "off"
+                    end
+                })
+            end
 
             local attachment_editor_groupbox = _local:AddLeftGroupbox("Attachment Editor") do
 
@@ -361,5 +383,3 @@ aimbot_groupbox:AddSlider('aimbot_fov_size', {
     end;
 
     getgenv().loaded = true;
-		end
-end;
